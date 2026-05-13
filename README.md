@@ -5,7 +5,7 @@
 
 | Membro | Tela |
 | :--- | :--- |
-|Lara Paixão | Tela de Insights, perfil e nova senha |
+|Lara Paixão | Tela de perfil e nova senha |
 | Guilherme Fontes | Tela de Editar/Criar tarefa e Tela de categorias |
 | Isadora Luiza | Login /Cadastro/Esqueceu senha |
 | Felipe Machado | Relacionadas a 'Metas' |
