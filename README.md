@@ -10,4 +10,5 @@
 | Isadora Luiza | Login /Cadastro/Esqueceu senha |
 | Felipe Machado | Relacionadas a 'Metas' |
 | Arthur Melo | Notificações e Insights |
+| Igor Barreto | Home |
 
