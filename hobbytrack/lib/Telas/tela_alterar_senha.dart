@@ -1,72 +1,77 @@
 import 'package:flutter/material.dart';
-import 'tela_alterar_senha.dart';
 
-class TelaPerfil extends StatefulWidget {
-  const TelaPerfil({super.key});
+class TelaAlterarSenha extends StatefulWidget {
+  const TelaAlterarSenha({super.key});
 
   @override
-  State<TelaPerfil> createState() => _TelaPerfilState();
+  State<TelaAlterarSenha> createState() => _TelaAlterarSenhaState();
 }
 
-class _TelaPerfilState extends State<TelaPerfil> {
-  // Futuramente você pode trocar esses valores por dados vindos do login/back-end.
-  String nomeUsuario = 'Ana lima';
-  String emailUsuario = 'ana.souza@gmail.com';
+class _TelaAlterarSenhaState extends State<TelaAlterarSenha> {
+  final TextEditingController senhaAtualController = TextEditingController(
+    text: '************',
+  );
 
-  late TextEditingController nomeController;
-  late TextEditingController emailController;
+  final TextEditingController novaSenhaController = TextEditingController(
+    text: '***************',
+  );
+
+  final TextEditingController repetirSenhaController = TextEditingController(
+    text: '***************',
+  );
+
+  bool ocultarSenhaAtual = true;
+  bool ocultarNovaSenha = true;
+  bool ocultarRepetirSenha = true;
 
   static const Color backgroundColor = Color(0xFFFFF7F0);
   static const Color purple = Color(0xFF8738F2);
   static const Color orange = Color(0xFFFF7A00);
   static const Color lightPurple = Color(0xFFB992F4);
-  static const Color gray = Color(0xFF9E9E9E);
-
-  @override
-  void initState() {
-    super.initState();
-
-    nomeController = TextEditingController(text: nomeUsuario);
-    emailController = TextEditingController(text: emailUsuario);
-  }
 
   @override
   void dispose() {
-    nomeController.dispose();
-    emailController.dispose();
+    senhaAtualController.dispose();
+    novaSenhaController.dispose();
+    repetirSenhaController.dispose();
     super.dispose();
   }
 
-  void salvarDadosPerfil() {
-    setState(() {
-      nomeUsuario = nomeController.text;
-      emailUsuario = emailController.text;
-    });
+  void atualizarSenha() {
+    final senhaAtual = senhaAtualController.text.trim();
+    final novaSenha = novaSenhaController.text.trim();
+    final repetirSenha = repetirSenhaController.text.trim();
+
+    if (senhaAtual.isEmpty || novaSenha.isEmpty || repetirSenha.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Preencha todos os campos.'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+      return;
+    }
+
+    if (novaSenha != repetirSenha) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('A nova senha e a confirmação precisam ser iguais.'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+      return;
+    }
 
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
-        content: Text('Dados do perfil atualizados!'),
+        content: Text('Senha atualizada com sucesso!'),
         duration: Duration(seconds: 2),
       ),
     );
-  }
 
-void alterarSenha() {
-  Navigator.push(
-    context,
-    MaterialPageRoute(
-      builder: (context) => const TelaAlterarSenha(),
-    ),
-  );
-}
-
-  void sairDaConta() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Função de sair da conta será conectada depois.'),
-        duration: Duration(seconds: 2),
-      ),
-    );
+    // Futuramente aqui você vai chamar seu back-end.
+    // Exemplo:
+    // await usuarioService.atualizarSenha(senhaAtual, novaSenha);
   }
 
   void botaoMenuSemAcao(String nomeTela) {
@@ -111,13 +116,28 @@ void alterarSenha() {
                   ),
                   child: Column(
                     children: [
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 22),
 
                       Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 54),
+                        padding: const EdgeInsets.symmetric(horizontal: 20),
                         child: Row(
-                          mainAxisAlignment: MainAxisAlignment.end,
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
+                            InkWell(
+                              onTap: () {
+                                Navigator.pop(context);
+                              },
+                              borderRadius: BorderRadius.circular(50),
+                              child: const Padding(
+                                padding: EdgeInsets.all(4),
+                                child: Icon(
+                                  Icons.arrow_back,
+                                  color: purple,
+                                  size: 28,
+                                ),
+                              ),
+                            ),
+
                             InkWell(
                               onTap: () {
                                 ScaffoldMessenger.of(context).showSnackBar(
@@ -148,7 +168,7 @@ void alterarSenha() {
                         ),
                       ),
 
-                      const SizedBox(height: 115),
+                      const SizedBox(height: 110),
 
                       Container(
                         width: 100,
@@ -166,9 +186,9 @@ void alterarSenha() {
 
                       const SizedBox(height: 14),
 
-                      Text(
-                        nomeUsuario,
-                        style: const TextStyle(
+                      const Text(
+                        'Ana lima',
+                        style: TextStyle(
                           fontSize: 23,
                           fontWeight: FontWeight.w700,
                           color: Colors.black,
@@ -191,166 +211,85 @@ void alterarSenha() {
                               ),
                             ],
                           ),
-                          child: Column(
-                            children: [
-                              Padding(
-                                padding:
-                                    const EdgeInsets.fromLTRB(16, 16, 16, 10),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    const Text(
-                                      'Nome',
-                                      style: TextStyle(
-                                        fontSize: 14,
-                                        color: Colors.black,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 6),
-
-                                    TextField(
-                                      controller: nomeController,
-                                      decoration: InputDecoration(
-                                        contentPadding:
-                                            const EdgeInsets.symmetric(
-                                          horizontal: 10,
-                                          vertical: 8,
-                                        ),
-                                        isDense: true,
-                                        filled: true,
-                                        fillColor: Colors.white,
-                                        enabledBorder: OutlineInputBorder(
-                                          borderRadius:
-                                              BorderRadius.circular(8),
-                                          borderSide: const BorderSide(
-                                            color: Color(0xFF9F9F9F),
-                                            width: 1,
-                                          ),
-                                        ),
-                                        focusedBorder: OutlineInputBorder(
-                                          borderRadius:
-                                              BorderRadius.circular(8),
-                                          borderSide: const BorderSide(
-                                            color: purple,
-                                            width: 1.4,
-                                          ),
-                                        ),
-                                      ),
-                                      style: const TextStyle(
-                                        fontSize: 12,
-                                        color: Colors.black,
-                                      ),
-                                      onChanged: (valor) {
-                                        setState(() {
-                                          nomeUsuario = valor;
-                                        });
-                                      },
-                                    ),
-
-                                    const SizedBox(height: 8),
-
-                                    const Text(
-                                      'E-mail',
-                                      style: TextStyle(
-                                        fontSize: 14,
-                                        color: Colors.black,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 6),
-
-                                    TextField(
-                                      controller: emailController,
-                                      keyboardType: TextInputType.emailAddress,
-                                      decoration: InputDecoration(
-                                        contentPadding:
-                                            const EdgeInsets.symmetric(
-                                          horizontal: 10,
-                                          vertical: 8,
-                                        ),
-                                        isDense: true,
-                                        filled: true,
-                                        fillColor: Colors.white,
-                                        enabledBorder: OutlineInputBorder(
-                                          borderRadius:
-                                              BorderRadius.circular(8),
-                                          borderSide: const BorderSide(
-                                            color: Color(0xFF9F9F9F),
-                                            width: 1,
-                                          ),
-                                        ),
-                                        focusedBorder: OutlineInputBorder(
-                                          borderRadius:
-                                              BorderRadius.circular(8),
-                                          borderSide: const BorderSide(
-                                            color: purple,
-                                            width: 1.4,
-                                          ),
-                                        ),
-                                      ),
-                                      style: const TextStyle(
-                                        fontSize: 12,
-                                        color: Colors.black,
-                                      ),
-                                    ),
-                                  ],
+                          child: Padding(
+                            padding: const EdgeInsets.fromLTRB(16, 16, 16, 22),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  'Senha atual',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    color: Colors.black,
+                                  ),
                                 ),
-                              ),
+                                const SizedBox(height: 6),
 
-                              const Divider(
-                                height: 1,
-                                thickness: 0.6,
-                                color: Color(0xFFE8E8E8),
-                              ),
-
-                              Padding(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 16,
-                                  vertical: 13,
+                                CampoSenhaPerfil(
+                                  controller: senhaAtualController,
+                                  obscureText: ocultarSenhaAtual,
+                                  onVisibilityTap: () {
+                                    setState(() {
+                                      ocultarSenhaAtual = !ocultarSenhaAtual;
+                                    });
+                                  },
                                 ),
-                                child: Row(
-                                  mainAxisAlignment:
-                                      MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    const Text(
-                                      'Senha',
-                                      style: TextStyle(
-                                        fontSize: 14,
-                                        color: Colors.black,
-                                      ),
-                                    ),
 
-                                    TextButton(
-                                      onPressed: alterarSenha,
-                                      style: TextButton.styleFrom(
-                                        padding: EdgeInsets.zero,
-                                        minimumSize: Size.zero,
-                                        tapTargetSize:
-                                            MaterialTapTargetSize.shrinkWrap,
-                                      ),
-                                      child: const Text(
-                                        'Alterar senha >',
-                                        style: TextStyle(
-                                          fontSize: 13,
-                                          color: purple,
-                                          fontWeight: FontWeight.w400,
-                                        ),
-                                      ),
-                                    ),
-                                  ],
+                                const SizedBox(height: 8),
+
+                                const Text(
+                                  'Nova senha',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    color: Colors.black,
+                                  ),
                                 ),
-                              ),
-                            ],
+                                const SizedBox(height: 6),
+
+                                CampoSenhaPerfil(
+                                  controller: novaSenhaController,
+                                  obscureText: ocultarNovaSenha,
+                                  onVisibilityTap: () {
+                                    setState(() {
+                                      ocultarNovaSenha = !ocultarNovaSenha;
+                                    });
+                                  },
+                                ),
+
+                                const SizedBox(height: 8),
+
+                                const Text(
+                                  'Repita a nova senha',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    color: Colors.black,
+                                  ),
+                                ),
+                                const SizedBox(height: 6),
+
+                                CampoSenhaPerfil(
+                                  controller: repetirSenhaController,
+                                  obscureText: ocultarRepetirSenha,
+                                  onVisibilityTap: () {
+                                    setState(() {
+                                      ocultarRepetirSenha =
+                                          !ocultarRepetirSenha;
+                                    });
+                                  },
+                                ),
+                              ],
+                            ),
                           ),
                         ),
                       ),
 
-                      const SizedBox(height: 20),
+                      const SizedBox(height: 68),
 
                       SizedBox(
                         width: 284,
                         height: 41,
                         child: ElevatedButton(
-                          onPressed: salvarDadosPerfil,
+                          onPressed: atualizarSenha,
                           style: ElevatedButton.styleFrom(
                             padding: EdgeInsets.zero,
                             backgroundColor: Colors.transparent,
@@ -374,49 +313,7 @@ void alterarSenha() {
                             child: Container(
                               alignment: Alignment.center,
                               child: const Text(
-                                'Salvar alterações',
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 17,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-
-                      const SizedBox(height: 14),
-
-                      SizedBox(
-                        width: 284,
-                        height: 41,
-                        child: ElevatedButton(
-                          onPressed: sairDaConta,
-                          style: ElevatedButton.styleFrom(
-                            padding: EdgeInsets.zero,
-                            backgroundColor: Colors.transparent,
-                            shadowColor: Colors.transparent,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(25),
-                            ),
-                          ),
-                          child: Ink(
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(25),
-                              gradient: const LinearGradient(
-                                colors: [
-                                  orange,
-                                  purple,
-                                ],
-                                begin: Alignment.centerLeft,
-                                end: Alignment.centerRight,
-                              ),
-                            ),
-                            child: Container(
-                              alignment: Alignment.center,
-                              child: const Text(
-                                'Sair da conta',
+                                'Atualizar senha',
                                 style: TextStyle(
                                   color: Colors.white,
                                   fontSize: 19,
@@ -442,6 +339,68 @@ void alterarSenha() {
         onCategoriasTap: () => botaoMenuSemAcao('Categorias'),
         onInsightsTap: () => botaoMenuSemAcao('Insights'),
         onAddTap: botaoAdicionar,
+      ),
+    );
+  }
+}
+
+class CampoSenhaPerfil extends StatelessWidget {
+  final TextEditingController controller;
+  final bool obscureText;
+  final VoidCallback onVisibilityTap;
+
+  const CampoSenhaPerfil({
+    super.key,
+    required this.controller,
+    required this.obscureText,
+    required this.onVisibilityTap,
+  });
+
+  static const Color purple = Color(0xFF8738F2);
+
+  @override
+  Widget build(BuildContext context) {
+    return TextField(
+      controller: controller,
+      obscureText: obscureText,
+      decoration: InputDecoration(
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 10,
+          vertical: 8,
+        ),
+        isDense: true,
+        filled: true,
+        fillColor: Colors.white,
+        suffixIcon: IconButton(
+          onPressed: onVisibilityTap,
+          icon: Icon(
+            obscureText ? Icons.visibility_off : Icons.visibility,
+            size: 18,
+            color: const Color(0xFF8F8F8F),
+          ),
+        ),
+        suffixIconConstraints: const BoxConstraints(
+          minWidth: 36,
+          minHeight: 32,
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: const BorderSide(
+            color: Color(0xFF9F9F9F),
+            width: 1,
+          ),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: const BorderSide(
+            color: purple,
+            width: 1.4,
+          ),
+        ),
+      ),
+      style: const TextStyle(
+        fontSize: 12,
+        color: Colors.black,
       ),
     );
   }
@@ -524,7 +483,6 @@ class CustomBottomBar extends StatelessWidget {
 
   static const Color purple = Color(0xFF8738F2);
   static const Color orange = Color(0xFFFF7A00);
-  static const Color gray = Color(0xFF9E9E9E);
 
   @override
   Widget build(BuildContext context) {
