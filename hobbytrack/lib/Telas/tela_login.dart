@@ -3,8 +3,15 @@ import 'auth_widgets.dart';
 import 'tela_cadastro.dart';
 import 'tela_recuperar_senha.dart';
 
-class TelaLogin extends StatelessWidget {
+class TelaLogin extends StatefulWidget {
   const TelaLogin({super.key});
+
+  @override
+  State<TelaLogin> createState() => _TelaLoginState();
+}
+
+class _TelaLoginState extends State<TelaLogin> {
+  bool lembrarSenha = true;
 
   @override
   Widget build(BuildContext context) {
@@ -12,7 +19,7 @@ class TelaLogin extends StatelessWidget {
       child: Stack(
         children: [
           Positioned(
-            top: 310,
+            top: 270,
             left: 0,
             right: 0,
             child: Center(
@@ -32,28 +39,32 @@ class TelaLogin extends StatelessWidget {
           ),
 
           Positioned(
-            top: 390,
+            top: 340,
             left: 45,
             right: 45,
             child: Column(
               children: [
                 const AuthLogo(),
-                const SizedBox(height: 8),
-                const Text(
-                  'HobbyTrack',
-                  style: TextStyle(
-                    color: laranja,
-                    fontSize: 18,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(height: 26),
+
+                const SizedBox(height: 20),
+
                 const AuthInput(label: 'Email'),
+
                 const SizedBox(height: 14),
-                const AuthInput(label: 'senha', obscure: true),
+
+                const AuthInput(
+                  label: 'senha',
+                  obscure: true,
+                ),
+
                 Align(
                   alignment: Alignment.centerRight,
                   child: TextButton(
+                    style: TextButton.styleFrom(
+                      padding: EdgeInsets.zero,
+                      minimumSize: const Size(0, 28),
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
                     onPressed: () {
                       Navigator.push(
                         context,
@@ -71,12 +82,16 @@ class TelaLogin extends StatelessWidget {
                     ),
                   ),
                 ),
-                const SizedBox(height: 10),
+
+                const SizedBox(height: 14),
+
                 GradientButton(
                   text: 'Entrar',
                   onPressed: () {},
                 ),
-                const SizedBox(height: 20),
+
+                const SizedBox(height: 22),
+
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
@@ -87,24 +102,39 @@ class TelaLogin extends StatelessWidget {
                         fontSize: 13,
                       ),
                     ),
+
                     const SizedBox(width: 10),
-                    Container(
-                      width: 40,
-                      height: 20,
-                      padding: const EdgeInsets.all(2),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: Colors.grey),
-                      ),
-                      child: Align(
-                        alignment: Alignment.centerRight,
-                        child: Container(
-                          width: 14,
-                          height: 14,
-                          decoration: const BoxDecoration(
-                            color: Colors.green,
-                            shape: BoxShape.circle,
+
+                    GestureDetector(
+                      onTap: () {
+                        setState(() {
+                          lembrarSenha = !lembrarSenha;
+                        });
+                      },
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 200),
+                        width: 42,
+                        height: 22,
+                        padding: const EdgeInsets.all(2),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(color: Colors.grey),
+                        ),
+                        child: AnimatedAlign(
+                          duration: const Duration(milliseconds: 200),
+                          alignment: lembrarSenha
+                              ? Alignment.centerRight
+                              : Alignment.centerLeft,
+                          child: Container(
+                            width: 16,
+                            height: 16,
+                            decoration: BoxDecoration(
+                              color: lembrarSenha
+                                  ? Colors.green
+                                  : Colors.grey,
+                              shape: BoxShape.circle,
+                            ),
                           ),
                         ),
                       ),

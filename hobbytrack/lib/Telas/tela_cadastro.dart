@@ -30,31 +30,39 @@ class TelaCadastro extends StatelessWidget {
               ),
             ),
           ),
+
           Positioned(
-            top: 330,
+            top: 315,
             left: 45,
             right: 45,
             child: Column(
               children: [
                 const AuthLogo(),
-                const SizedBox(height: 8),
-                const Text(
-                  'HobbyTrack',
-                  style: TextStyle(
-                    color: laranja,
-                    fontSize: 18,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(height: 24),
+
+                const SizedBox(height: 18),
+
                 const AuthInput(label: 'Usuário'),
+
                 const SizedBox(height: 12),
+
                 const AuthInput(label: 'Email'),
+
                 const SizedBox(height: 12),
-                const AuthInput(label: 'senha', obscure: true),
+
+                const AuthInput(
+                  label: 'senha',
+                  obscure: true,
+                ),
+
                 const SizedBox(height: 12),
-                const AuthInput(label: 'Confirmação de senha', obscure: true),
-                const SizedBox(height: 24),
+
+                const AuthInput(
+                  label: 'Confirmação de senha',
+                  obscure: true,
+                ),
+
+                const SizedBox(height: 26),
+
                 GradientButton(
                   text: 'Cadastrar',
                   onPressed: () {},

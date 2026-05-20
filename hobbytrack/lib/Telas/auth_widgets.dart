@@ -1,80 +1,74 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 
 const Color roxo = Color(0xFF7C3AED);
 const Color laranja = Color(0xFFFF7A00);
-const Color offWhite = Color(0xFFF8F3EC);
-const Color fundoFora = Color(0xFFC9C4BA);
 const Color texto = Color(0xFF6B6474);
+const Color fundoFora = Color(0xFFC9C4BA);
 
 class AuthBackground extends StatelessWidget {
   final Widget child;
   final bool cadastro;
 
-  const AuthBackground({
-    super.key,
-    required this.child,
-    this.cadastro = false,
-  });
+  const AuthBackground({super.key, required this.child, this.cadastro = false});
 
   @override
   Widget build(BuildContext context) {
+    final String formaBranca = cadastro
+        ? 'assets/Rectangle3.png'
+        : 'assets/Rectangle 2.png';
+
     return Scaffold(
       backgroundColor: fundoFora,
       body: Center(
         child: FittedBox(
           fit: BoxFit.contain,
-          child: Container(
+          child: SizedBox(
             width: 390,
             height: 844,
-            decoration: BoxDecoration(
-              color: offWhite,
-              borderRadius: BorderRadius.circular(8),
-            ),
-            clipBehavior: Clip.antiAlias,
             child: Stack(
               children: [
-                // FUNDO COM GRADIENTE ANGULAR
+                // FUNDO OFF-WHITE GERAL
+                Container(
+                  width: double.infinity,
+                  height: double.infinity,
+                  color: const Color(0xFFF8F3EC),
+                ),
                 Positioned(
                   top: 0,
                   left: 0,
                   right: 0,
+                  height: cadastro ? 280 : 300,
                   child: Container(
-                    height: cadastro ? 270 : 290,
                     decoration: const BoxDecoration(
-                      gradient: SweepGradient(
-                        center: Alignment.topCenter,
-                        transform: GradientRotation(0.0),
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.centerRight,
                         colors: [
-                          roxo,
-                          laranja,
-                          roxo,
+                          Color(0xFF7C3AED),
+                          Color(0xFFC34CA3),
+                          Color(0xFFFF7A00),
                         ],
-                        stops: [
-                          0.54,
-                          0.63,
-                          1.0,
-                        ],
+                        stops: [0.0, 0.55, 1.0],
                       ),
                     ),
                   ),
                 ),
 
-                // FORMA BRANCA / OFF WHITE
-                Positioned.fill(
-                  child: Align(
-                    alignment: Alignment.bottomCenter,
-                    child: ClipPath(
-                      clipper: cadastro ? CadastroClipper() : LoginClipper(),
-                      child: Container(
-                        width: double.infinity,
-                        height: cadastro ? 700 : 650,
-                        color: offWhite,
-                      ),
-                    ),
+                Positioned(
+                  top: cadastro ? 100 : 100,
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  child: Image.asset(
+                    formaBranca,
+                    fit: cadastro ? BoxFit.fitWidth : BoxFit.cover,
+                    alignment: cadastro
+                        ? Alignment.topCenter
+                        : Alignment.center,
                   ),
                 ),
 
+                // CONTEÚDO DA TELA
                 child,
               ],
             ),
@@ -85,136 +79,16 @@ class AuthBackground extends StatelessWidget {
   }
 }
 
-class LoginClipper extends CustomClipper<Path> {
-  @override
-  Path getClip(Size size) {
-    final path = Path();
-
-    path.moveTo(0, size.height * 0.20);
-
-    path.cubicTo(
-      size.width * 0.15,
-      size.height * 0.12,
-      size.width * 0.38,
-      size.height * 0.02,
-      size.width * 0.48,
-      size.height * 0.03,
-    );
-
-    path.cubicTo(
-      size.width * 0.60,
-      size.height * 0.05,
-      size.width * 0.58,
-      size.height * 0.23,
-      size.width * 0.47,
-      size.height * 0.27,
-    );
-
-    path.cubicTo(
-      size.width * 0.40,
-      size.height * 0.30,
-      size.width * 0.28,
-      size.height * 0.28,
-      size.width * 0.15,
-      size.height * 0.25,
-    );
-
-    path.cubicTo(
-      size.width * 0.08,
-      size.height * 0.23,
-      size.width * 0.03,
-      size.height * 0.21,
-      0,
-      size.height * 0.20,
-    );
-
-    path.lineTo(0, size.height);
-    path.lineTo(size.width, size.height);
-    path.lineTo(size.width, 0.23 * size.height);
-
-    path.cubicTo(
-      size.width * 0.86,
-      size.height * 0.25,
-      size.width * 0.72,
-      size.height * 0.27,
-      size.width * 0.55,
-      size.height * 0.20,
-    );
-
-    path.cubicTo(
-      size.width * 0.52,
-      size.height * 0.19,
-      size.width * 0.50,
-      size.height * 0.19,
-      size.width * 0.48,
-      size.height * 0.20,
-    );
-
-    path.close();
-    return path;
-  }
-
-  @override
-  bool shouldReclip(CustomClipper<Path> oldClipper) => true;
-}
-
-class CadastroClipper extends CustomClipper<Path> {
-  @override
-  Path getClip(Size size) {
-    final path = Path();
-
-    path.moveTo(0, size.height * 0.12);
-
-    path.cubicTo(
-      size.width * 0.15,
-      size.height * 0.15,
-      size.width * 0.35,
-      size.height * 0.16,
-      size.width * 0.42,
-      size.height * 0.10,
-    );
-
-    path.cubicTo(
-      size.width * 0.55,
-      -size.height * 0.02,
-      size.width * 0.20,
-      -size.height * 0.03,
-      size.width * 0.33,
-      size.height * 0.04,
-    );
-
-    path.cubicTo(
-      size.width * 0.55,
-      size.height * 0.15,
-      size.width * 0.78,
-      size.height * 0.10,
-      size.width,
-      size.height * 0.22,
-    );
-
-    path.lineTo(size.width, size.height);
-    path.lineTo(0, size.height);
-    path.close();
-
-    return path;
-  }
-
-  @override
-  bool shouldReclip(CustomClipper<Path> oldClipper) => true;
-}
-
 class AuthLogo extends StatelessWidget {
   const AuthLogo({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      width: 110,
-      height: 110,
-      child: SvgPicture.asset(
-        'assets/logo.svg',
-        fit: BoxFit.contain,
-      ),
+    return Image.asset(
+      'assets/logo.png',
+      width: 155,
+      height: 155,
+      fit: BoxFit.contain,
     );
   }
 }
@@ -224,13 +98,11 @@ class AuthLock extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      width: 110,
-      height: 110,
-      child: SvgPicture.asset(
-        'assets/cadeado.svg',
-        fit: BoxFit.contain,
-      ),
+    return Image.asset(
+      'assets/cadeado.png',
+      width: 130,
+      height: 130,
+      fit: BoxFit.contain,
     );
   }
 }
@@ -239,37 +111,21 @@ class AuthInput extends StatelessWidget {
   final String label;
   final bool obscure;
 
-  const AuthInput({
-    super.key,
-    required this.label,
-    this.obscure = false,
-  });
+  const AuthInput({super.key, required this.label, this.obscure = false});
 
   @override
   Widget build(BuildContext context) {
     return TextField(
       obscureText: obscure,
-      style: const TextStyle(
-        fontSize: 14,
-        color: texto,
-      ),
+      style: const TextStyle(fontSize: 14, color: texto),
       decoration: InputDecoration(
         labelText: label,
-        labelStyle: const TextStyle(
-          fontSize: 14,
-          color: texto,
-        ),
+        labelStyle: const TextStyle(fontSize: 14, color: texto),
         enabledBorder: const UnderlineInputBorder(
-          borderSide: BorderSide(
-            color: roxo,
-            width: 2,
-          ),
+          borderSide: BorderSide(color: roxo, width: 2),
         ),
         focusedBorder: const UnderlineInputBorder(
-          borderSide: BorderSide(
-            color: roxo,
-            width: 2,
-          ),
+          borderSide: BorderSide(color: roxo, width: 2),
         ),
       ),
     );
@@ -296,12 +152,7 @@ class GradientButton extends StatelessWidget {
         alignment: Alignment.center,
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(12),
-          gradient: const LinearGradient(
-            colors: [
-              laranja,
-              roxo,
-            ],
-          ),
+          gradient: const LinearGradient(colors: [laranja, roxo]),
         ),
         child: Text(
           text,
@@ -356,16 +207,14 @@ class TopTabs extends StatelessWidget {
                   borderRadius: BorderRadius.circular(22),
                   gradient: cadastroSelecionado
                       ? null
-                      : const LinearGradient(
-                          colors: [roxo, laranja],
-                        ),
+                      : const LinearGradient(colors: [roxo, laranja]),
                 ),
                 child: Text(
                   'Entrar',
                   style: TextStyle(
                     color: cadastroSelecionado ? texto : Colors.white,
-                    fontWeight: FontWeight.w600,
                     fontSize: 13,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
               ),
@@ -379,17 +228,15 @@ class TopTabs extends StatelessWidget {
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(22),
                   gradient: cadastroSelecionado
-                      ? const LinearGradient(
-                          colors: [roxo, laranja],
-                        )
+                      ? const LinearGradient(colors: [roxo, laranja])
                       : null,
                 ),
                 child: Text(
                   'Cadastrar-se',
                   style: TextStyle(
                     color: cadastroSelecionado ? Colors.white : texto,
-                    fontWeight: FontWeight.w600,
                     fontSize: 13,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
               ),

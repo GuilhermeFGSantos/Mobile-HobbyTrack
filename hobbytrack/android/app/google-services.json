@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "99099315567",
+    "project_id": "mobile-hobbytrack",
+    "storage_bucket": "mobile-hobbytrack.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:99099315567:android:e9dd7b770ad6c51556ac9a",
+        "android_client_info": {
+          "package_name": "com.example.hobbytrack"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCShmyUkRygHWPX6EqTIE6rKnjB9cOoWo8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
