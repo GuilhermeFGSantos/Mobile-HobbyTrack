@@ -11,13 +11,15 @@ class TelaRecuperarSenha extends StatelessWidget {
       child: Stack(
         children: [
           Positioned(
-            top: 360,
+            top: 315,
             left: 45,
             right: 45,
             child: Column(
               children: [
                 const AuthLock(),
-                const SizedBox(height: 12),
+
+                const SizedBox(height: 14),
+
                 const Text(
                   'Recuperar senha',
                   style: TextStyle(
@@ -26,7 +28,9 @@ class TelaRecuperarSenha extends StatelessWidget {
                     fontWeight: FontWeight.w700,
                   ),
                 ),
+
                 const SizedBox(height: 8),
+
                 const Text(
                   'Digite seu email de cadastro para receber\num link e criar uma nova senha',
                   textAlign: TextAlign.center,
@@ -35,14 +39,20 @@ class TelaRecuperarSenha extends StatelessWidget {
                     fontSize: 12,
                   ),
                 ),
-                const SizedBox(height: 30),
+
+                const SizedBox(height: 32),
+
                 const AuthInput(label: 'Digite seu e-mail'),
-                const SizedBox(height: 30),
+
+                const SizedBox(height: 32),
+
                 GradientButton(
                   text: 'Entrar',
                   onPressed: () {},
                 ),
-                const SizedBox(height: 18),
+
+                const SizedBox(height: 20),
+
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
