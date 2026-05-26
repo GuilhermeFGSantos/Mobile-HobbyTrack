@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:hobbytrack/Telas/tela_categorias.dart';
 import 'auth_widgets.dart';
 
 void _abrirFiltro(BuildContext context) {
@@ -34,7 +35,11 @@ class _FiltroSheetState extends State<_FiltroSheet> {
     _OpcaoFiltro('Leitura', Icons.menu_book_rounded, Color(0xFF8FC79A)),
     _OpcaoFiltro('Violino', Icons.music_note_rounded, laranja),
     _OpcaoFiltro('Pintura', Icons.brush_rounded, Color(0xFFB39DDB)),
-    _OpcaoFiltro('Esportes', Icons.sports_basketball_rounded, Color(0xFF64B5F6)),
+    _OpcaoFiltro(
+      'Esportes',
+      Icons.sports_basketball_rounded,
+      Color(0xFF64B5F6),
+    ),
   ];
 
   @override
@@ -48,159 +53,144 @@ class _FiltroSheetState extends State<_FiltroSheet> {
     final termo = _busca.text.trim().toLowerCase();
     final lista = termo.isEmpty
         ? _opcoes
-        : _opcoes
-              .where((o) => o.nome.toLowerCase().contains(termo))
-              .toList();
+        : _opcoes.where((o) => o.nome.toLowerCase().contains(termo)).toList();
 
     return Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-            const SizedBox(height: 16),
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 18),
-              child: Row(
-                children: [
-                  Text(
-                    'Filtro por nome',
-                    style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w700,
-                      color: Color(0xFF2B2B2B),
-                    ),
-                  ),
-                  Spacer(),
-                  Icon(Icons.more_vert, size: 18, color: texto),
-                ],
-              ),
-            ),
-            const SizedBox(height: 12),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 18),
-              child: TextField(
-                controller: _busca,
-                onChanged: (_) => setState(() {}),
-                style: const TextStyle(fontSize: 14),
-                decoration: InputDecoration(
-                  hintText: 'Buscar',
-                  hintStyle: const TextStyle(color: texto, fontSize: 14),
-                  prefixIcon: const Icon(
-                    Icons.search,
-                    color: texto,
-                    size: 20,
-                  ),
-                  isDense: true,
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 12,
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(24),
-                    borderSide: const BorderSide(color: Color(0xFFE6E1D8)),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(24),
-                    borderSide: const BorderSide(color: roxo, width: 1.5),
-                  ),
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        const SizedBox(height: 16),
+        const Padding(
+          padding: EdgeInsets.symmetric(horizontal: 18),
+          child: Row(
+            children: [
+              Text(
+                'Filtro por nome',
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF2B2B2B),
                 ),
               ),
-            ),
-            const SizedBox(height: 6),
-            Flexible(
-              child: ListView.builder(
-                shrinkWrap: true,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 6,
-                ),
-                itemCount: lista.length,
-                itemBuilder: (_, i) {
-                  final o = lista[i];
-                  final ativo = o.nome == selecionado;
-                  return InkWell(
-                    borderRadius: BorderRadius.circular(12),
-                    onTap: () => setState(() => selecionado = o.nome),
-                    child: Container(
-                      margin: const EdgeInsets.symmetric(vertical: 4),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 10,
-                      ),
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(12),
-                        color: ativo
-                            ? roxo.withValues(alpha: 0.08)
-                            : Colors.transparent,
-                      ),
-                      child: Row(
-                        children: [
-                          Container(
-                            width: 4,
-                            height: 22,
-                            decoration: BoxDecoration(
-                              color: ativo ? roxo : Colors.transparent,
-                              borderRadius: BorderRadius.circular(2),
-                            ),
-                          ),
-                          const SizedBox(width: 10),
-                          Container(
-                            width: 30,
-                            height: 30,
-                            decoration: BoxDecoration(
-                              color: o.cor.withValues(alpha: 0.25),
-                              shape: BoxShape.circle,
-                            ),
-                            alignment: Alignment.center,
-                            child: Icon(o.icone, color: o.cor, size: 18),
-                          ),
-                          const SizedBox(width: 12),
-                          Text(
-                            o.nome,
-                            style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: ativo
-                                  ? FontWeight.w700
-                                  : FontWeight.w500,
-                              color: const Color(0xFF2B2B2B),
-                            ),
-                          ),
-                          const Spacer(),
-                          if (ativo)
-                            const Icon(
-                              Icons.check_rounded,
-                              color: roxo,
-                              size: 18,
-                            ),
-                        ],
-                      ),
-                    ),
-                  );
-                },
+              Spacer(),
+              Icon(Icons.more_vert, size: 18, color: texto),
+            ],
+          ),
+        ),
+        const SizedBox(height: 12),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 18),
+          child: TextField(
+            controller: _busca,
+            onChanged: (_) => setState(() {}),
+            style: const TextStyle(fontSize: 14),
+            decoration: InputDecoration(
+              hintText: 'Buscar',
+              hintStyle: const TextStyle(color: texto, fontSize: 14),
+              prefixIcon: const Icon(Icons.search, color: texto, size: 20),
+              isDense: true,
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 12,
+                vertical: 12,
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(24),
+                borderSide: const BorderSide(color: Color(0xFFE6E1D8)),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(24),
+                borderSide: const BorderSide(color: roxo, width: 1.5),
               ),
             ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 6, 20, 16),
-              child: GestureDetector(
-                onTap: () => Navigator.pop(context, selecionado),
+          ),
+        ),
+        const SizedBox(height: 6),
+        Flexible(
+          child: ListView.builder(
+            shrinkWrap: true,
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            itemCount: lista.length,
+            itemBuilder: (_, i) {
+              final o = lista[i];
+              final ativo = o.nome == selecionado;
+              return InkWell(
+                borderRadius: BorderRadius.circular(12),
+                onTap: () => setState(() => selecionado = o.nome),
                 child: Container(
-                  width: double.infinity,
-                  height: 46,
-                  alignment: Alignment.center,
+                  margin: const EdgeInsets.symmetric(vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 10,
+                  ),
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(12),
-                    color: const Color(0xFFFF7A00),
+                    color: ativo
+                        ? roxo.withValues(alpha: 0.08)
+                        : Colors.transparent,
                   ),
-                  child: const Text(
-                    'Aplicar',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 15,
-                      fontWeight: FontWeight.w700,
-                    ),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 4,
+                        height: 22,
+                        decoration: BoxDecoration(
+                          color: ativo ? roxo : Colors.transparent,
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Container(
+                        width: 30,
+                        height: 30,
+                        decoration: BoxDecoration(
+                          color: o.cor.withValues(alpha: 0.25),
+                          shape: BoxShape.circle,
+                        ),
+                        alignment: Alignment.center,
+                        child: Icon(o.icone, color: o.cor, size: 18),
+                      ),
+                      const SizedBox(width: 12),
+                      Text(
+                        o.nome,
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: ativo ? FontWeight.w700 : FontWeight.w500,
+                          color: const Color(0xFF2B2B2B),
+                        ),
+                      ),
+                      const Spacer(),
+                      if (ativo)
+                        const Icon(Icons.check_rounded, color: roxo, size: 18),
+                    ],
                   ),
+                ),
+              );
+            },
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 6, 20, 16),
+          child: GestureDetector(
+            onTap: () => Navigator.pop(context, selecionado),
+            child: Container(
+              width: double.infinity,
+              height: 46,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(12),
+                color: const Color(0xFFFF7A00),
+              ),
+              child: const Text(
+                'Aplicar',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 15,
+                  fontWeight: FontWeight.w700,
                 ),
               ),
             ),
-          ],
+          ),
+        ),
+      ],
     );
   }
 }
@@ -224,91 +214,92 @@ class TelaHome extends StatelessWidget {
           fit: BoxFit.contain,
           child: ClipRect(
             child: SizedBox(
-            width: 390,
-            height: 844,
-            child: Stack(
-              children: [
-                Container(
-                  width: double.infinity,
-                  height: double.infinity,
-                  color: const Color(0xFFFFF8F1),
-                ),
-                Positioned(
-                  top: 0,
-                  left: 0,
-                  right: 0,
-                  bottom: 0,
-                  child: SafeArea(
-                    top: false,
-                    bottom: false,
-                    left: false,
-                    right: false,
-                    child: SingleChildScrollView(
-                      padding: const EdgeInsets.only(bottom: 110),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const _HeaderGradiente(),
-                          Padding(
-                            padding: EdgeInsets.only(left: 0, right: 16),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Image.asset(
-                                  'hobbytrack_logo_sem_fundo.png',
-                                  height: 120,
-                                  fit: BoxFit.contain,
-                                ),
-                                Transform.translate(
-                                  offset: const Offset(0, -30),
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Text(
-                                        'Olá, Ana',
-                                        style: TextStyle(
-                                          fontSize: 20,
-                                          fontWeight: FontWeight.w800,
-                                          color: Color(0xFF2B2B2B),
-                                        ),
-                                      ),
-                                      SizedBox(height: 2),
-                                      Text(
-                                        'Que tal registrar um momento do seu hobby hoje?',
-                                        style: TextStyle(
-                                          fontSize: 13,
-                                          color: Color(0xFF6B6474),
-                                        ),
-                                      ),
-                                    ],
+              width: 390,
+              height: 844,
+              child: Stack(
+                children: [
+                  Container(
+                    width: double.infinity,
+                    height: double.infinity,
+                    color: const Color(0xFFFFF8F1),
+                  ),
+                  Positioned(
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    child: SafeArea(
+                      top: false,
+                      bottom: false,
+                      left: false,
+                      right: false,
+                      child: SingleChildScrollView(
+                        padding: const EdgeInsets.only(bottom: 110),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const _HeaderGradiente(),
+                            Padding(
+                              padding: EdgeInsets.only(left: 0, right: 16),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Image.asset(
+                                    'hobbytrack_logo_sem_fundo.png',
+                                    height: 120,
+                                    fit: BoxFit.contain,
                                   ),
-                                ),
-                              ],
+                                  Transform.translate(
+                                    offset: const Offset(0, -30),
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Text(
+                                          'Olá, Ana',
+                                          style: TextStyle(
+                                            fontSize: 20,
+                                            fontWeight: FontWeight.w800,
+                                            color: Color(0xFF2B2B2B),
+                                          ),
+                                        ),
+                                        SizedBox(height: 2),
+                                        Text(
+                                          'Que tal registrar um momento do seu hobby hoje?',
+                                          style: TextStyle(
+                                            fontSize: 13,
+                                            color: Color(0xFF6B6474),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
-                          ),
-                          const SizedBox(height: 12),
-                          const _BotaoRegistrar(),
-                          const SizedBox(height: 22),
-                          const _SecaoHobbiesAtivos(),
-                          const SizedBox(height: 22),
-                          const _CardEvolucao(),
-                          const SizedBox(height: 16),
-                          const _CardAtividadeRisco(),
-                        ],
+                            const SizedBox(height: 12),
+                            const _BotaoRegistrar(),
+                            const SizedBox(height: 22),
+                            const _SecaoHobbiesAtivos(),
+                            const SizedBox(height: 22),
+                            const _CardEvolucao(),
+                            const SizedBox(height: 16),
+                            const _CardAtividadeRisco(),
+                          ],
+                        ),
                       ),
                     ),
                   ),
-                ),
-                const Positioned(
-                  left: 0,
-                  right: 0,
-                  bottom: 0,
-                  child: _BottomNav(),
-                ),
-              ],
+                  const Positioned(
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    child: _BottomNav(),
+                  ),
+                ],
+              ),
             ),
-          ),
           ),
         ),
       ),
@@ -329,11 +320,7 @@ class _HeaderGradiente extends StatelessWidget {
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.centerRight,
-            colors: [
-              Color(0xFF7C3AED),
-              Color(0xFFC34CA3),
-              Color(0xFFFF7A00),
-            ],
+            colors: [Color(0xFF7C3AED), Color(0xFFC34CA3), Color(0xFFFF7A00)],
             stops: [0.0, 0.55, 1.0],
           ),
         ),
@@ -365,7 +352,8 @@ class _HeaderClipper extends CustomClipper<Path> {
     path.lineTo(0, size.height - baseY);
     for (int i = 0; i <= 100; i++) {
       final x = size.width * i / 100;
-      final y = size.height - baseY + amplitude * math.sin(i / 100 * 2 * math.pi);
+      final y =
+          size.height - baseY + amplitude * math.sin(i / 100 * 2 * math.pi);
       path.lineTo(x, y);
     }
     path.lineTo(size.width, 0);
@@ -565,7 +553,7 @@ class _CardHobby extends StatelessWidget {
         borderRadius: BorderRadius.circular(18),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha:0.06),
+            color: Colors.black.withValues(alpha: 0.06),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -580,7 +568,7 @@ class _CardHobby extends StatelessWidget {
                 width: 38,
                 height: 38,
                 decoration: BoxDecoration(
-                  color: corIcone.withValues(alpha:0.35),
+                  color: corIcone.withValues(alpha: 0.35),
                   shape: BoxShape.circle,
                 ),
                 alignment: Alignment.center,
@@ -599,10 +587,7 @@ class _CardHobby extends StatelessWidget {
               color: Color(0xFF2B2B2B),
             ),
           ),
-          Text(
-            info,
-            style: const TextStyle(fontSize: 11, color: texto),
-          ),
+          Text(info, style: const TextStyle(fontSize: 11, color: texto)),
           const SizedBox(height: 8),
           Row(
             children: [
@@ -686,11 +671,7 @@ class _CardHobby extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
-              const Icon(
-                Icons.radio_button_unchecked,
-                size: 14,
-                color: texto,
-              ),
+              const Icon(Icons.radio_button_unchecked, size: 14, color: texto),
             ],
           ),
         ],
@@ -712,7 +693,7 @@ class _CardEvolucao extends StatelessWidget {
         borderRadius: BorderRadius.circular(18),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha:0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -738,50 +719,50 @@ class _CardEvolucao extends StatelessWidget {
             ),
             child: Column(
               children: [
-          const Center(
-            child: Text.rich(
-              TextSpan(
-                style: TextStyle(fontSize: 12, color: texto),
-                children: [
-                  TextSpan(text: 'Você manteve a '),
-                  TextSpan(
-                    text: 'constância',
-                    style: TextStyle(
-                      color: roxo,
-                      fontWeight: FontWeight.w700,
+                const Center(
+                  child: Text.rich(
+                    TextSpan(
+                      style: TextStyle(fontSize: 12, color: texto),
+                      children: [
+                        TextSpan(text: 'Você manteve a '),
+                        TextSpan(
+                          text: 'constância',
+                          style: TextStyle(
+                            color: roxo,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        TextSpan(text: ' esta semana! 🔥'),
+                      ],
                     ),
                   ),
-                  TextSpan(text: ' esta semana! 🔥'),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 14),
-          Row(
-            children: const [
-              Expanded(
-                child: _StatEvolucao(
-                  valor: '4',
-                  rotulo: 'hobbies ativos',
-                  cor: Color(0xFF2B2B2B),
                 ),
-              ),
-              Expanded(
-                child: _StatEvolucao(
-                  valor: '8',
-                  rotulo: 'Dias de constância',
-                  cor: Color(0xFF2B2B2B),
+                const SizedBox(height: 14),
+                Row(
+                  children: const [
+                    Expanded(
+                      child: _StatEvolucao(
+                        valor: '4',
+                        rotulo: 'hobbies ativos',
+                        cor: Color(0xFF2B2B2B),
+                      ),
+                    ),
+                    Expanded(
+                      child: _StatEvolucao(
+                        valor: '8',
+                        rotulo: 'Dias de constância',
+                        cor: Color(0xFF2B2B2B),
+                      ),
+                    ),
+                    Expanded(
+                      child: _StatEvolucao(
+                        valor: '+12%',
+                        rotulo: 'evolução da semana',
+                        cor: Color(0xFF22A36B),
+                      ),
+                    ),
+                  ],
                 ),
-              ),
-              Expanded(
-                child: _StatEvolucao(
-                  valor: '+12%',
-                  rotulo: 'evolução da semana',
-                  cor: Color(0xFF22A36B),
-                ),
-              ),
-            ],
-          ),
               ],
             ),
           ),
@@ -885,47 +866,47 @@ class _CardAtividadeRisco extends StatelessWidget {
               ),
             ),
             child: Row(
-            children: [
-              Expanded(
-                child: Container(
-                  height: 38,
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(10),
-                    color: roxo,
+              children: [
+                Expanded(
+                  child: Container(
+                    height: 38,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(10),
+                      color: roxo,
+                    ),
+                    child: const Text(
+                      'Retomar agora',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
                   ),
-                  child: const Text(
-                    'Retomar agora',
-                    style: TextStyle(
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Container(
+                    height: 38,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
                       color: Colors.white,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: const Color(0xFFE6E1D8)),
+                    ),
+                    child: const Text(
+                      'Pausar',
+                      style: TextStyle(
+                        color: Color(0xFF2B2B2B),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ),
                 ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Container(
-                  height: 38,
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: const Color(0xFFE6E1D8)),
-                  ),
-                  child: const Text(
-                    'Pausar',
-                    style: TextStyle(
-                      color: Color(0xFF2B2B2B),
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
+              ],
+            ),
           ),
         ],
       ),
@@ -944,7 +925,7 @@ class _BottomNav extends StatelessWidget {
         color: const Color(0xFFEAEAEA),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha:0.06),
+            color: Colors.black.withValues(alpha: 0.06),
             blurRadius: 10,
             offset: const Offset(0, -2),
           ),
@@ -954,7 +935,7 @@ class _BottomNav extends StatelessWidget {
         clipBehavior: Clip.none,
         children: [
           Row(
-            children: const [
+            children: [
               Expanded(
                 child: _NavItem(
                   icon: Icons.home_rounded,
@@ -970,9 +951,35 @@ class _BottomNav extends StatelessWidget {
               ),
               Expanded(child: SizedBox()),
               Expanded(
-                child: _NavItem(
-                  icon: Icons.grid_view_rounded,
-                  label: 'Categorias',
+                child: TextButton(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const TelaCategorias()),
+                    );
+                  },
+                  style: TextButton.styleFrom(
+                    foregroundColor: texto,
+                    padding: const EdgeInsets.only(top: 22),
+                    minimumSize:
+                        Size.zero, // Remove as margens internas padrão do botão
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.grid_view_rounded, color: texto, size: 22),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Categorias',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: texto,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
               Expanded(
@@ -996,7 +1003,7 @@ class _BottomNav extends StatelessWidget {
                   gradient: const LinearGradient(colors: [laranja, roxo]),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withValues(alpha:0.15),
+                      color: Colors.black.withValues(alpha: 0.15),
                       blurRadius: 8,
                       offset: const Offset(0, 3),
                     ),
@@ -1016,11 +1023,7 @@ class _NavItem extends StatelessWidget {
   final IconData icon;
   final String label;
   final bool ativo;
-  const _NavItem({
-    required this.icon,
-    required this.label,
-    this.ativo = false,
-  });
+  const _NavItem({required this.icon, required this.label, this.ativo = false});
 
   @override
   Widget build(BuildContext context) {
