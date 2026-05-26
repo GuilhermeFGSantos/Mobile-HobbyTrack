@@ -29,7 +29,8 @@ class _TelaMetasState extends State<TelaMetas> {
       titulo: 'Ler 12 livros este ano',
       hobby: hobbiesMock.firstWhere((h) => h.id == 'leitura'),
       tipo: TipoMeta.quantitativa,
-      prazo: Prazo.relativo(tipo: TipoPrazo.emMeses, quantidade: 12),
+      frequencia:
+          Frequencia.porPeriodo(vezes: 1, unidade: UnidadePeriodo.mes),
       valorAlvo: 12,
       progresso: 7,
     ),
@@ -37,19 +38,23 @@ class _TelaMetasState extends State<TelaMetas> {
       titulo: 'Aprender Stairway to Heaven',
       hobby: hobbiesMock.firstWhere((h) => h.id == 'violao'),
       tipo: TipoMeta.qualitativa,
-      prazo: Prazo.relativo(tipo: TipoPrazo.emDias, quantidade: 60),
-      milestones: [
-        Milestone(id: 'm1', texto: 'Aprender o solo introdutório'),
-        Milestone(id: 'm2', texto: 'Decorar sequência de acordes principal'),
+      frequencia:
+          Frequencia.porPeriodo(vezes: 3, unidade: UnidadePeriodo.semana),
+      checks: const [
+        EstadoCheck.concluido,
+        EstadoCheck.concluido,
+        EstadoCheck.vazio,
       ],
     ),
     Meta(
       titulo: 'Alcançar Diamond no Valorant',
       hobby: hobbiesMock.firstWhere((h) => h.id == 'jogos'),
       tipo: TipoMeta.qualitativa,
-      prazo: Prazo.absoluta(data: DateTime.now().add(const Duration(days: 90))),
-      milestones: [
-        Milestone(id: 'v1', texto: 'Sair do Bronze'),
+      frequencia: Frequencia.diasSemana({2, 4, 6}),
+      checks: const [
+        EstadoCheck.concluido,
+        EstadoCheck.falhado,
+        EstadoCheck.vazio,
       ],
     ),
   ];
@@ -141,6 +146,26 @@ class _TelaMetasState extends State<TelaMetas> {
       meta.status = novo >= meta.valorAlvo && meta.valorAlvo > 0
           ? StatusMeta.concluida
           : StatusMeta.emAndamento;
+    });
+  }
+
+  // Cicla o estado do check no índice i: vazio → concluído → falhado → vazio.
+  void alternarCheck(Meta meta, int i) {
+    if (i < 0 || i >= meta.checks.length) return;
+    setState(() {
+      final atual = meta.checks[i];
+      final proximo = switch (atual) {
+        EstadoCheck.vazio => EstadoCheck.concluido,
+        EstadoCheck.concluido => EstadoCheck.falhado,
+        EstadoCheck.falhado => EstadoCheck.vazio,
+      };
+      meta.checks[i] = proximo;
+
+      // Conclui automaticamente se todos os checks estão como concluído.
+      final todosOk = meta.checks.isNotEmpty &&
+          meta.checks.every((c) => c == EstadoCheck.concluido);
+      meta.status =
+          todosOk ? StatusMeta.concluida : StatusMeta.emAndamento;
     });
   }
 

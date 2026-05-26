@@ -11,6 +11,69 @@ enum FiltroMeta { todas, emAndamento, concluidas }
 //  - dataEspecifica armazena uma data absoluta escolhida pelo usuário.
 enum TipoPrazo { emDias, emSemanas, emMeses, dataEspecifica }
 
+// Frequência da meta (substitui Prazo no design novo).
+//  - porPeriodo: "X vezes por dia/semana/mês"
+//  - diasSemana: dias específicos da semana (0=Dom ... 6=Sáb)
+enum TipoFrequencia { porPeriodo, diasSemana }
+
+enum UnidadePeriodo { dia, semana, mes }
+
+// Estado de cada "check" de uma meta qualitativa.
+enum EstadoCheck { vazio, concluido, falhado }
+
+class Frequencia {
+  final TipoFrequencia tipo;
+  final int vezes;
+  final UnidadePeriodo unidade;
+  final Set<int> dias;
+
+  const Frequencia._({
+    required this.tipo,
+    this.vezes = 0,
+    this.unidade = UnidadePeriodo.semana,
+    this.dias = const {},
+  });
+
+  factory Frequencia.porPeriodo({
+    required int vezes,
+    required UnidadePeriodo unidade,
+  }) =>
+      Frequencia._(
+        tipo: TipoFrequencia.porPeriodo,
+        vezes: vezes,
+        unidade: unidade,
+      );
+
+  factory Frequencia.diasSemana(Set<int> dias) => Frequencia._(
+        tipo: TipoFrequencia.diasSemana,
+        dias: Set<int>.from(dias),
+      );
+
+  bool get valida => tipo == TipoFrequencia.porPeriodo
+      ? vezes > 0
+      : dias.isNotEmpty;
+
+  // Tamanho default da lista de checks pra uma meta qualitativa com esta frequência.
+  int get totalOcorrencias =>
+      tipo == TipoFrequencia.porPeriodo ? vezes : dias.length;
+
+  String get descricao {
+    if (tipo == TipoFrequencia.porPeriodo) {
+      final unidadeStr = switch (unidade) {
+        UnidadePeriodo.dia => 'dia',
+        UnidadePeriodo.semana => 'semana',
+        UnidadePeriodo.mes => 'mês',
+      };
+      final vezesStr = vezes == 1 ? '1 vez' : '$vezes vezes';
+      return '$vezesStr por $unidadeStr';
+    }
+    if (dias.isEmpty) return 'nenhum dia';
+    const siglas = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+    final ordenados = dias.toList()..sort();
+    return ordenados.map((d) => siglas[d]).join(', ');
+  }
+}
+
 class Prazo {
   TipoPrazo tipo;
   int quantidade; // 0 quando tipo == dataEspecifica
@@ -121,28 +184,31 @@ class Meta {
   String titulo;
   Hobby hobby;
   TipoMeta tipo;
-  Prazo prazo;
-  int valorAlvo;            // só usado por quantitativa
-  int progresso;            // só usado por quantitativa
+  Frequencia frequencia;
+  int valorAlvo;              // só usado por quantitativa
+  int progresso;              // só usado por quantitativa
   StatusMeta status;
-  List<Milestone> milestones; // só usado por qualitativa
+  List<EstadoCheck> checks;   // só usado por qualitativa
+  List<Milestone> milestones; // legado — mantido por compat
 
   Meta({
     required this.titulo,
     required this.hobby,
     required this.tipo,
-    required this.prazo,
+    required this.frequencia,
     this.valorAlvo = 0,
     this.progresso = 0,
     this.status = StatusMeta.emAndamento,
+    List<EstadoCheck>? checks,
     List<Milestone>? milestones,
-  }) : milestones = milestones ?? [];
+  })  : checks = checks ?? [],
+        milestones = milestones ?? [];
 
   // Identidade visual derivada do hobby.
   String get emoji => hobby.emoji;
   Color get cor => hobby.cor;
 
-  String get subtitulo => '${hobby.nome} · ${prazo.descricao}';
+  String get subtitulo => '${hobby.nome} · ${frequencia.descricao}';
 
   double get percentual {
     if (valorAlvo <= 0) return 0;
@@ -152,7 +218,8 @@ class Meta {
 
   // Métrica usada pra eleger a meta "mais frequente do mês":
   // como ainda não temos timestamp por progresso, usamos o total atual
-  // como aproximação. Pra quantitativa = progresso, pra qualitativa = nº marcos.
-  int get pontuacaoProgresso =>
-      tipo == TipoMeta.quantitativa ? progresso : milestones.length;
+  // como aproximação. Pra quantitativa = progresso, pra qualitativa = nº checks concluídos.
+  int get pontuacaoProgresso => tipo == TipoMeta.quantitativa
+      ? progresso
+      : checks.where((c) => c == EstadoCheck.concluido).length;
 }
