@@ -205,7 +205,7 @@ class _TelaAlterarSenhaState extends State<TelaAlterarSenha> {
                             borderRadius: BorderRadius.circular(10),
                             boxShadow: [
                               BoxShadow(
-                                color: Colors.black.withOpacity(0.18),
+                                color: Colors.black.withValues(alpha: 0.18),
                                 blurRadius: 8,
                                 offset: const Offset(0, 3),
                               ),
@@ -492,7 +492,7 @@ class CustomBottomBar extends StatelessWidget {
         color: const Color(0xFFFFF7F0),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.15),
+            color: Colors.black.withValues(alpha: 0.15),
             blurRadius: 6,
             offset: const Offset(0, -2),
           ),

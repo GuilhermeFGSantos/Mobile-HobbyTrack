@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'auth_widgets.dart';
 import 'tela_cadastro.dart';
 import 'tela_recuperar_senha.dart';
+import 'tela_home.dart';
 
 class TelaLogin extends StatefulWidget {
   const TelaLogin({super.key});
@@ -87,7 +88,14 @@ class _TelaLoginState extends State<TelaLogin> {
 
                 GradientButton(
                   text: 'Entrar',
-                  onPressed: () {},
+                  onPressed: () {
+                    Navigator.pushReplacement(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const TelaHome(),
+                      ),
+                    );
+                  },
                 ),
 
                 const SizedBox(height: 22),
