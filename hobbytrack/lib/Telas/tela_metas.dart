@@ -26,42 +26,31 @@ class _TelaMetasState extends State<TelaMetas> {
 
   final List<Meta> metas = [
     Meta(
-      nome: 'Leitura',
-      emoji: '📖',
-      cor: const Color(0xFFFF9B3F),
+      titulo: 'Ler 12 livros este ano',
+      hobby: hobbiesMock.firstWhere((h) => h.id == 'leitura'),
       tipo: TipoMeta.quantitativa,
-      frequencia: Frequencia.porPeriodo(
-        vezes: 1,
-        unidade: UnidadePeriodo.dia,
-      ),
-      valorAlvo: 20,
-      progresso: 12,
-      status: StatusMeta.emAndamento,
+      prazo: Prazo.relativo(tipo: TipoPrazo.emMeses, quantidade: 12),
+      valorAlvo: 12,
+      progresso: 7,
     ),
     Meta(
-      nome: 'Violino',
-      emoji: '🎻',
-      cor: const Color(0xFFFF7A00),
-      tipo: TipoMeta.quantitativa,
-      frequencia: Frequencia.porPeriodo(
-        vezes: 2,
-        unidade: UnidadePeriodo.semana,
-      ),
-      valorAlvo: 8,
-      progresso: 8,
-      status: StatusMeta.concluida,
-    ),
-    Meta(
-      nome: 'Yoga',
-      emoji: '🧘',
-      cor: const Color(0xFFB992F4),
+      titulo: 'Aprender Stairway to Heaven',
+      hobby: hobbiesMock.firstWhere((h) => h.id == 'violao'),
       tipo: TipoMeta.qualitativa,
-      frequencia: Frequencia.porPeriodo(
-        vezes: 3,
-        unidade: UnidadePeriodo.semana,
-      ),
-      status: StatusMeta.emAndamento,
-      checks: [EstadoCheck.vazio, EstadoCheck.vazio, EstadoCheck.vazio],
+      prazo: Prazo.relativo(tipo: TipoPrazo.emDias, quantidade: 60),
+      milestones: [
+        Milestone(id: 'm1', texto: 'Aprender o solo introdutório'),
+        Milestone(id: 'm2', texto: 'Decorar sequência de acordes principal'),
+      ],
+    ),
+    Meta(
+      titulo: 'Alcançar Diamond no Valorant',
+      hobby: hobbiesMock.firstWhere((h) => h.id == 'jogos'),
+      tipo: TipoMeta.qualitativa,
+      prazo: Prazo.absoluta(data: DateTime.now().add(const Duration(days: 90))),
+      milestones: [
+        Milestone(id: 'v1', texto: 'Sair do Bronze'),
+      ],
     ),
   ];
 
@@ -106,8 +95,8 @@ class _TelaMetasState extends State<TelaMetas> {
           : StatusMeta.pausada;
     });
     final txt = meta.status == StatusMeta.pausada
-        ? 'Meta "${meta.nome}" pausada.'
-        : 'Meta "${meta.nome}" retomada.';
+        ? 'Meta "${meta.titulo}" pausada.'
+        : 'Meta "${meta.titulo}" retomada.';
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(txt), duration: const Duration(seconds: 1)),
     );
@@ -117,7 +106,7 @@ class _TelaMetasState extends State<TelaMetas> {
     final confirmado = await showDialog<bool>(
       context: context,
       barrierColor: Colors.black.withOpacity(0.45),
-      builder: (_) => _DialogExcluir(nomeMeta: meta.nome),
+      builder: (_) => _DialogExcluir(nomeMeta: meta.titulo),
     );
 
     if (confirmado == true) {
@@ -125,7 +114,7 @@ class _TelaMetasState extends State<TelaMetas> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Meta "${meta.nome}" excluída.'),
+            content: Text('Meta "${meta.titulo}" excluída.'),
             duration: const Duration(seconds: 1),
           ),
         );
@@ -142,18 +131,48 @@ class _TelaMetasState extends State<TelaMetas> {
     );
   }
 
-  void alternarCheck(Meta meta, int i) {
+  void ajustarProgresso(Meta meta, int delta) {
+    if (meta.tipo != TipoMeta.quantitativa) return;
     setState(() {
-      final novos = List<EstadoCheck>.from(meta.checks);
-      novos[i] = novos[i].proximo;
-      meta.checks = novos;
+      final novo = (meta.progresso + delta).clamp(0, meta.valorAlvo);
+      meta.progresso = novo;
 
-      // Concluída só quando todos os checks foram efetivamente cumpridos.
-      // Falhas mantêm a meta em andamento.
-      final tudoConcluido = novos.every((e) => e == EstadoCheck.concluido);
-      meta.status =
-          tudoConcluido ? StatusMeta.concluida : StatusMeta.emAndamento;
+      // Quantitativa conclui automaticamente ao bater o alvo.
+      meta.status = novo >= meta.valorAlvo && meta.valorAlvo > 0
+          ? StatusMeta.concluida
+          : StatusMeta.emAndamento;
     });
+  }
+
+  void adicionarMilestone(Meta meta) {
+    setState(() => meta.milestones.add(Milestone.novo()));
+  }
+
+  void removerMilestone(Meta meta, String id) {
+    setState(() => meta.milestones.removeWhere((m) => m.id == id));
+  }
+
+  void editarMilestone(Meta meta, String id, String novoTexto) {
+    final m = meta.milestones.firstWhere((m) => m.id == id);
+    m.texto = novoTexto;
+  }
+
+  // Conclusão manual — usada por metas qualitativas via menu ⋮.
+  void concluirMeta(Meta meta) {
+    setState(() => meta.status = StatusMeta.concluida);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Meta "${meta.titulo}" marcada como concluída.'),
+        duration: const Duration(seconds: 1),
+      ),
+    );
+  }
+
+  Meta? get metaMaisFrequente {
+    if (metas.isEmpty) return null;
+    return metas.reduce(
+      (a, b) => a.pontuacaoProgresso >= b.pontuacaoProgresso ? a : b,
+    );
   }
 
   @override
@@ -229,7 +248,7 @@ class _TelaMetasState extends State<TelaMetas> {
                         padding: const EdgeInsets.symmetric(horizontal: 22),
                         child: _PainelEstatisticas(
                           ativas: metasAtivas,
-                          sequenciaDias: 7,
+                          maisFrequente: metaMaisFrequente,
                         ),
                       ),
 
@@ -383,15 +402,19 @@ class _MetasHeaderPainter extends CustomPainter {
 
 class _PainelEstatisticas extends StatelessWidget {
   final int ativas;
-  final int sequenciaDias;
+  final Meta? maisFrequente;
 
   const _PainelEstatisticas({
     required this.ativas,
-    required this.sequenciaDias,
+    required this.maisFrequente,
   });
 
   @override
   Widget build(BuildContext context) {
+    final destaque = maisFrequente == null
+        ? '—'
+        : '${maisFrequente!.emoji} ${maisFrequente!.hobby.nome}';
+
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 12),
       decoration: BoxDecoration(
@@ -416,8 +439,8 @@ class _PainelEstatisticas extends StatelessWidget {
           Container(width: 1, height: 38, color: const Color(0xFFE6E6E6)),
           Expanded(
             child: _ItemEstatistica(
-              titulo: 'Sequência atual',
-              valor: '$sequenciaDias dias',
+              titulo: 'Mais frequente do mês',
+              valor: destaque,
             ),
           ),
         ],
@@ -580,7 +603,7 @@ class _CardMeta extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    meta.nome,
+                    meta.titulo,
                     style: const TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.w700,
@@ -589,7 +612,7 @@ class _CardMeta extends StatelessWidget {
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    meta.descricao,
+                    meta.subtitulo,
                     style: const TextStyle(fontSize: 11, color: _grayText),
                   ),
                   const SizedBox(height: 8),

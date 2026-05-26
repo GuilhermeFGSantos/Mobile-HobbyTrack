@@ -19,16 +19,15 @@ class TelaNovaMeta extends StatefulWidget {
 }
 
 class _TelaNovaMetaState extends State<TelaNovaMeta> {
-  late TextEditingController nomeCtrl;
+  late TextEditingController tituloCtrl;
   late TextEditingController valorCtrl;
-  late TextEditingController emojiCtrl;
 
+  Hobby? hobbySelecionado;
   TipoMeta tipo = TipoMeta.quantitativa;
   Frequencia frequencia = Frequencia.porPeriodo(
     vezes: 1,
     unidade: UnidadePeriodo.semana,
   );
-  Color cor = coresDisponiveis.first;
 
   bool get editando => widget.metaExistente != null;
 
@@ -36,28 +35,30 @@ class _TelaNovaMetaState extends State<TelaNovaMeta> {
   void initState() {
     super.initState();
     final m = widget.metaExistente;
-    nomeCtrl = TextEditingController(text: m?.nome ?? '');
+    tituloCtrl = TextEditingController(text: m?.titulo ?? '');
     valorCtrl = TextEditingController(
       text: m != null && m.valorAlvo > 0 ? '${m.valorAlvo}' : '',
     );
-    emojiCtrl = TextEditingController(text: m?.emoji ?? '');
+    hobbySelecionado = m?.hobby;
     tipo = m?.tipo ?? TipoMeta.quantitativa;
     frequencia = m?.frequencia ??
         Frequencia.porPeriodo(vezes: 1, unidade: UnidadePeriodo.semana);
-    cor = m?.cor ?? coresDisponiveis.first;
   }
 
   @override
   void dispose() {
-    nomeCtrl.dispose();
+    tituloCtrl.dispose();
     valorCtrl.dispose();
-    emojiCtrl.dispose();
     super.dispose();
   }
 
   void salvar() {
-    if (nomeCtrl.text.trim().isEmpty) {
-      _mostrarErro('Informe o nome da meta.');
+    if (hobbySelecionado == null) {
+      _mostrarErro('Selecione o hobby ao qual essa meta pertence.');
+      return;
+    }
+    if (tituloCtrl.text.trim().isEmpty) {
+      _mostrarErro('Informe o título da meta.');
       return;
     }
     if (!frequencia.valida) {
@@ -72,9 +73,8 @@ class _TelaNovaMetaState extends State<TelaNovaMeta> {
     }
 
     final novaMeta = Meta(
-      nome: nomeCtrl.text.trim(),
-      emoji: emojiCtrl.text.trim().isEmpty ? '🎯' : emojiCtrl.text.trim(),
-      cor: cor,
+      titulo: tituloCtrl.text.trim(),
+      hobby: hobbySelecionado!,
       tipo: tipo,
       frequencia: frequencia,
       valorAlvo: tipo == TipoMeta.quantitativa ? valor : 0,
@@ -152,11 +152,21 @@ class _TelaNovaMetaState extends State<TelaNovaMeta> {
 
                         const SizedBox(height: 18),
 
-                        const _Rotulo('Nome da meta'),
+                        const _Rotulo('Hobby'),
+                        const SizedBox(height: 6),
+                        _SeletorHobby(
+                          valor: hobbySelecionado,
+                          onChanged: (h) =>
+                              setState(() => hobbySelecionado = h),
+                        ),
+
+                        const SizedBox(height: 16),
+
+                        const _Rotulo('Título da meta'),
                         const SizedBox(height: 6),
                         _CampoTexto(
-                          controller: nomeCtrl,
-                          hint: 'Digite o nome da meta',
+                          controller: tituloCtrl,
+                          hint: 'Ex: Aprender a tocar Stairway to Heaven',
                         ),
 
                         const SizedBox(height: 16),
@@ -215,32 +225,6 @@ class _TelaNovaMetaState extends State<TelaNovaMeta> {
                         _SeletorFrequencia(
                           valor: frequencia,
                           onChanged: (f) => setState(() => frequencia = f),
-                        ),
-
-                        const SizedBox(height: 16),
-
-                        const _Rotulo('Emoji'),
-                        const SizedBox(height: 6),
-                        _CampoTexto(
-                          controller: emojiCtrl,
-                          hint: 'Toque para escolher',
-                        ),
-
-                        const SizedBox(height: 16),
-
-                        const _Rotulo('Cor'),
-                        const SizedBox(height: 10),
-                        Row(
-                          children: [
-                            for (final c in coresDisponiveis) ...[
-                              _BolinhaCor(
-                                cor: c,
-                                selecionada: c == cor,
-                                onTap: () => setState(() => cor = c),
-                              ),
-                              const SizedBox(width: 12),
-                            ],
-                          ],
                         ),
 
                         const SizedBox(height: 28),
@@ -787,31 +771,59 @@ class _ChipDia extends StatelessWidget {
   }
 }
 
-class _BolinhaCor extends StatelessWidget {
-  final Color cor;
-  final bool selecionada;
-  final VoidCallback onTap;
+class _SeletorHobby extends StatelessWidget {
+  final Hobby? valor;
+  final ValueChanged<Hobby> onChanged;
 
-  const _BolinhaCor({
-    required this.cor,
-    required this.selecionada,
-    required this.onTap,
-  });
+  const _SeletorHobby({required this.valor, required this.onChanged});
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 28,
-        height: 28,
-        decoration: BoxDecoration(
-          color: cor,
-          shape: BoxShape.circle,
-          border: Border.all(
-            color: selecionada ? Colors.black : Colors.transparent,
-            width: 2,
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: _bordaInput),
+      ),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<Hobby>(
+          value: valor,
+          isExpanded: true,
+          hint: const Text(
+            'selecione um hobby',
+            style: TextStyle(fontSize: 13, color: _grayLight),
           ),
+          icon: const Icon(Icons.keyboard_arrow_down, color: _grayText),
+          style: const TextStyle(fontSize: 13, color: Colors.black),
+          onChanged: (h) {
+            if (h != null) onChanged(h);
+          },
+          items: [
+            for (final h in hobbiesMock)
+              DropdownMenuItem(
+                value: h,
+                child: Row(
+                  children: [
+                    Container(
+                      width: 26,
+                      height: 26,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: h.cor.withOpacity(0.22),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        h.emoji,
+                        style: const TextStyle(fontSize: 15),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Text(h.nome),
+                  ],
+                ),
+              ),
+          ],
         ),
       ),
     );
