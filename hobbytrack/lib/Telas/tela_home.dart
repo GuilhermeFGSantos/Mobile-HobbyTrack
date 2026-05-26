@@ -1,7 +1,8 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
-import 'package:hobbytrack/Telas/tela_categorias.dart';
+import 'package:hobbytrack/Telas/tela_criar_hobby.dart';
+import 'package:hobbytrack/Telas/tela_editar_hobby.dart';
 import 'auth_widgets.dart';
 
 void _abrirFiltro(BuildContext context) {
@@ -951,35 +952,9 @@ class _BottomNav extends StatelessWidget {
               ),
               Expanded(child: SizedBox()),
               Expanded(
-                child: TextButton(
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => const TelaCategorias()),
-                    );
-                  },
-                  style: TextButton.styleFrom(
-                    foregroundColor: texto,
-                    padding: const EdgeInsets.only(top: 22),
-                    minimumSize:
-                        Size.zero, // Remove as margens internas padrão do botão
-                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                  ),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.grid_view_rounded, color: texto, size: 22),
-                      const SizedBox(height: 4),
-                      Text(
-                        'Categorias',
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: texto,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ],
-                  ),
+                child: _NavItem(
+                  icon: Icons.grid_view_rounded,
+                  label: 'Categorias',
                 ),
               ),
               Expanded(
