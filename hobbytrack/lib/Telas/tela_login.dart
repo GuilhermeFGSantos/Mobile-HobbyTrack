@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'auth_widgets.dart';
 import 'tela_cadastro.dart';
-import 'tela_metas.dart';
 import 'tela_recuperar_senha.dart';
 import 'tela_home.dart';
 
@@ -97,27 +96,6 @@ class _TelaLoginState extends State<TelaLogin> {
                       ),
                     );
                   },
-                ),
-                const SizedBox(height: 10),
-                // TEMP: atalho para testar TelaMetas sem precisar logar.
-                // Remover quando a Home estiver pronta e for o destino do login.
-                TextButton(
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const TelaMetas(),
-                      ),
-                    );
-                  },
-                  child: const Text(
-                    '[DEV] Testar Metas',
-                    style: TextStyle(
-                      color: roxo,
-                      fontSize: 12,
-                      decoration: TextDecoration.underline,
-                    ),
-                  ),
                 ),
 
                 const SizedBox(height: 22),

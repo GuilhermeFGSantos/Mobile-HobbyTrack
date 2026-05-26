@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'meta_model.dart';
 import 'mobile_frame.dart';
+import 'tela_categorias.dart';
 import 'tela_nova_meta.dart';
 
 // AVISO: existe um botão TEMPORÁRIO "[DEV] Testar Metas" na tela_login.dart
@@ -342,8 +343,11 @@ class _TelaMetasState extends State<TelaMetas> {
       ),
 
       bottomNavigationBar: _MetasBottomBar(
-        onHomeTap: () => avisoSemAcao('Home'),
-        onCategoriasTap: () => avisoSemAcao('Categorias'),
+        onHomeTap: () => Navigator.pop(context),
+        onCategoriasTap: () => Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const TelaCategorias()),
+        ),
         onInsightsTap: () => avisoSemAcao('Insights'),
         onAddTap: () => abrirNovaMeta(),
       ),

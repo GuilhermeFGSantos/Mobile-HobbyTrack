@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:hobbytrack/Telas/tela_criar_hobby.dart';
 import 'package:hobbytrack/Telas/tela_editar_hobby.dart';
+import 'package:hobbytrack/Telas/tela_metas.dart';
 import 'auth_widgets.dart';
 
 void _abrirFiltro(BuildContext context) {
@@ -948,6 +949,10 @@ class _BottomNav extends StatelessWidget {
                 child: _NavItem(
                   icon: Icons.track_changes_outlined,
                   label: 'Metas',
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const TelaMetas()),
+                  ),
                 ),
               ),
               Expanded(child: SizedBox()),
@@ -998,27 +1003,36 @@ class _NavItem extends StatelessWidget {
   final IconData icon;
   final String label;
   final bool ativo;
-  const _NavItem({required this.icon, required this.label, this.ativo = false});
+  final VoidCallback? onTap;
+  const _NavItem({
+    required this.icon,
+    required this.label,
+    this.ativo = false,
+    this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
     final Color cor = ativo ? roxo : texto;
-    return Padding(
-      padding: const EdgeInsets.only(top: 14),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, color: cor, size: 22),
-          const SizedBox(height: 4),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 11,
-              color: cor,
-              fontWeight: ativo ? FontWeight.w700 : FontWeight.w500,
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.only(top: 14),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, color: cor, size: 22),
+            const SizedBox(height: 4),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 11,
+                color: cor,
+                fontWeight: ativo ? FontWeight.w700 : FontWeight.w500,
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
