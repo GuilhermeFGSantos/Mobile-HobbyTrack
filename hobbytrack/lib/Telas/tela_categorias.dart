@@ -1,5 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:hobbytrack/Telas/tela_criar_hobby.dart';
+import 'package:hobbytrack/Telas/tela_insights.dart';
+import 'package:hobbytrack/Telas/tela_metas.dart';
+import 'package:hobbytrack/Telas/tela_notificacoes.dart';
 import 'package:hobbytrack/Telas/tela_nova_categoria.dart';
+import 'package:hobbytrack/Telas/tela_perfil.dart';
 import 'auth_widgets.dart';
 
 class TelaCategorias extends StatelessWidget {
@@ -15,9 +20,21 @@ class TelaCategorias extends StatelessWidget {
             right: 20,
             child: Row(
               children: [
-                _buildCircularIconButton(Icons.notifications_sharp),
+                _buildCircularIconButton(
+                  Icons.notifications_sharp,
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => TelaNotificacoes()),
+                  ),
+                ),
                 const SizedBox(width: 10),
-                _buildCircularIconButton(Icons.person_sharp),
+                _buildCircularIconButton(
+                  Icons.person_sharp,
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const TelaPerfil()),
+                  ),
+                ),
               ],
             ),
           ),
@@ -162,8 +179,21 @@ class TelaCategorias extends StatelessWidget {
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceAround,
                     children: [
-                      _buildBottomItem(Icons.home_outlined, 'Home', false),
-                      _buildBottomItem(Icons.track_changes, 'Metas', false),
+                      _buildBottomItem(
+                        Icons.home_outlined,
+                        'Home',
+                        false,
+                        onTap: () => Navigator.pop(context),
+                      ),
+                      _buildBottomItem(
+                        Icons.track_changes,
+                        'Metas',
+                        false,
+                        onTap: () => Navigator.pushReplacement(
+                          context,
+                          MaterialPageRoute(builder: (_) => const TelaMetas()),
+                        ),
+                      ),
                       const SizedBox(width: 45),
                       _buildBottomItem(
                         Icons.grid_view_rounded,
@@ -174,6 +204,10 @@ class TelaCategorias extends StatelessWidget {
                         Icons.bar_chart_rounded,
                         'Insights',
                         false,
+                        onTap: () => Navigator.pushReplacement(
+                          context,
+                          MaterialPageRoute(builder: (_) => const TelaInsights()),
+                        ),
                       ),
                     ],
                   ),
@@ -181,18 +215,24 @@ class TelaCategorias extends StatelessWidget {
 
                 Positioned(
                   top: -22,
-                  child: Container(
-                    width: 54,
-                    height: 54,
-                    decoration: const BoxDecoration(
-                      shape: BoxShape.circle,
-                      gradient: LinearGradient(
-                        colors: [laranja, roxo],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
+                  child: GestureDetector(
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const CriarHobby()),
                     ),
-                    child: const Icon(Icons.add, color: Colors.white, size: 28),
+                    child: Container(
+                      width: 54,
+                      height: 54,
+                      decoration: const BoxDecoration(
+                        shape: BoxShape.circle,
+                        gradient: LinearGradient(
+                          colors: [laranja, roxo],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                      ),
+                      child: const Icon(Icons.add, color: Colors.white, size: 28),
+                    ),
                   ),
                 ),
               ],
@@ -323,15 +363,18 @@ class TelaCategorias extends StatelessWidget {
     );
   }
 
-  Widget _buildCircularIconButton(IconData icon) {
-    return Container(
-      width: 36,
-      height: 36,
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        shape: BoxShape.circle,
+  Widget _buildCircularIconButton(IconData icon, {VoidCallback? onTap}) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 36,
+        height: 36,
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          shape: BoxShape.circle,
+        ),
+        child: Icon(icon, color: Colors.grey.shade700, size: 20),
       ),
-      child: Icon(icon, color: Colors.grey.shade700, size: 20),
     );
   }
 
@@ -408,22 +451,25 @@ class TelaCategorias extends StatelessWidget {
     );
   }
 
-  Widget _buildBottomItem(IconData icon, String label, bool isActive) {
+  Widget _buildBottomItem(IconData icon, String label, bool isActive, {VoidCallback? onTap}) {
     final color = isActive ? roxo : Colors.grey.shade600;
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Icon(icon, color: color, size: 22),
-        const SizedBox(height: 2),
-        Text(
-          label,
-          style: TextStyle(
-            color: color,
-            fontSize: 10,
-            fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
+    return GestureDetector(
+      onTap: onTap,
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(icon, color: color, size: 22),
+          const SizedBox(height: 2),
+          Text(
+            label,
+            style: TextStyle(
+              color: color,
+              fontSize: 10,
+              fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }

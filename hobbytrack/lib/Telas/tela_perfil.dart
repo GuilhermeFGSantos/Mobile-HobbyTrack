@@ -1,5 +1,10 @@
 import 'package:flutter/material.dart';
 import 'tela_alterar_senha.dart';
+import 'tela_categorias.dart';
+import 'tela_criar_hobby.dart';
+import 'tela_insights.dart';
+import 'tela_metas.dart';
+import 'tela_notificacoes.dart';
 
 class TelaPerfil extends StatefulWidget {
   const TelaPerfil({super.key});
@@ -118,16 +123,10 @@ void alterarSenha() {
                           mainAxisAlignment: MainAxisAlignment.end,
                           children: [
                             InkWell(
-                              onTap: () {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text(
-                                      'Notificações serão conectadas depois.',
-                                    ),
-                                    duration: Duration(seconds: 1),
-                                  ),
-                                );
-                              },
+                              onTap: () => Navigator.push(
+                                context,
+                                MaterialPageRoute(builder: (_) => TelaNotificacoes()),
+                              ),
                               borderRadius: BorderRadius.circular(50),
                               child: Container(
                                 width: 40,
@@ -436,11 +435,23 @@ void alterarSenha() {
       ),
 
       bottomNavigationBar: CustomBottomBar(
-        onHomeTap: () => botaoMenuSemAcao('Home'),
-        onMetasTap: () => botaoMenuSemAcao('Metas'),
-        onCategoriasTap: () => botaoMenuSemAcao('Categorias'),
-        onInsightsTap: () => botaoMenuSemAcao('Insights'),
-        onAddTap: botaoAdicionar,
+        onHomeTap: () => Navigator.pop(context),
+        onMetasTap: () => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const TelaMetas()),
+        ),
+        onCategoriasTap: () => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const TelaCategorias()),
+        ),
+        onInsightsTap: () => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const TelaInsights()),
+        ),
+        onAddTap: () => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const CriarHobby()),
+        ),
       ),
     );
   }

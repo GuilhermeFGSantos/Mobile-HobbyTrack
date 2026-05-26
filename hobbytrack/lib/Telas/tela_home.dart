@@ -1,9 +1,12 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:hobbytrack/Telas/tela_categorias.dart';
 import 'package:hobbytrack/Telas/tela_criar_hobby.dart';
-import 'package:hobbytrack/Telas/tela_editar_hobby.dart';
+import 'package:hobbytrack/Telas/tela_insights.dart';
 import 'package:hobbytrack/Telas/tela_metas.dart';
+import 'package:hobbytrack/Telas/tela_notificacoes.dart';
+import 'package:hobbytrack/Telas/tela_perfil.dart';
 import 'auth_widgets.dart';
 
 void _abrirFiltro(BuildContext context) {
@@ -332,9 +335,21 @@ class _HeaderGradiente extends StatelessWidget {
             Row(
               children: [
                 const Spacer(),
-                _IconeCirculo(icon: Icons.notifications_none_rounded),
+                _IconeCirculo(
+                  icon: Icons.notifications_none_rounded,
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => TelaNotificacoes()),
+                  ),
+                ),
                 const SizedBox(width: 10),
-                _IconeCirculo(icon: Icons.person_outline_rounded),
+                _IconeCirculo(
+                  icon: Icons.person_outline_rounded,
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const TelaPerfil()),
+                  ),
+                ),
               ],
             ),
           ],
@@ -369,19 +384,23 @@ class _HeaderClipper extends CustomClipper<Path> {
 
 class _IconeCirculo extends StatelessWidget {
   final IconData icon;
-  const _IconeCirculo({required this.icon});
+  final VoidCallback? onTap;
+  const _IconeCirculo({required this.icon, this.onTap});
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: 36,
-      height: 36,
-      decoration: const BoxDecoration(
-        color: Color(0xFFFFF8F1),
-        shape: BoxShape.circle,
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 36,
+        height: 36,
+        decoration: const BoxDecoration(
+          color: Color(0xFFFFF8F1),
+          shape: BoxShape.circle,
+        ),
+        alignment: Alignment.center,
+        child: Icon(icon, color: texto, size: 20),
       ),
-      alignment: Alignment.center,
-      child: Icon(icon, color: texto, size: 20),
     );
   }
 }
@@ -393,20 +412,26 @@ class _BotaoRegistrar extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: Container(
-        width: double.infinity,
-        height: 48,
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(14),
-          gradient: const LinearGradient(colors: [laranja, roxo]),
+      child: GestureDetector(
+        onTap: () => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const CriarHobby()),
         ),
-        child: const Text(
-          '+ Registrar progresso',
-          style: TextStyle(
-            color: Colors.white,
-            fontSize: 15,
-            fontWeight: FontWeight.w700,
+        child: Container(
+          width: double.infinity,
+          height: 48,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(14),
+            gradient: const LinearGradient(colors: [laranja, roxo]),
+          ),
+          child: const Text(
+            '+ Registrar progresso',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 15,
+              fontWeight: FontWeight.w700,
+            ),
           ),
         ),
       ),
@@ -960,12 +985,20 @@ class _BottomNav extends StatelessWidget {
                 child: _NavItem(
                   icon: Icons.grid_view_rounded,
                   label: 'Categorias',
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const TelaCategorias()),
+                  ),
                 ),
               ),
               Expanded(
                 child: _NavItem(
                   icon: Icons.bar_chart_rounded,
                   label: 'Insights',
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const TelaInsights()),
+                  ),
                 ),
               ),
             ],
@@ -975,21 +1008,27 @@ class _BottomNav extends StatelessWidget {
             left: 0,
             right: 0,
             child: Center(
-              child: Container(
-                width: 56,
-                height: 56,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  gradient: const LinearGradient(colors: [laranja, roxo]),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.15),
-                      blurRadius: 8,
-                      offset: const Offset(0, 3),
-                    ),
-                  ],
+              child: GestureDetector(
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const CriarHobby()),
                 ),
-                child: const Icon(Icons.add, color: Colors.white, size: 30),
+                child: Container(
+                  width: 56,
+                  height: 56,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: const LinearGradient(colors: [laranja, roxo]),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.15),
+                        blurRadius: 8,
+                        offset: const Offset(0, 3),
+                      ),
+                    ],
+                  ),
+                  child: const Icon(Icons.add, color: Colors.white, size: 30),
+                ),
               ),
             ),
           ),

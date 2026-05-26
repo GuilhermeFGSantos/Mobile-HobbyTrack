@@ -2,7 +2,10 @@ import 'package:flutter/material.dart';
 import 'meta_model.dart';
 import 'mobile_frame.dart';
 import 'tela_categorias.dart';
+import 'tela_insights.dart';
+import 'tela_notificacoes.dart';
 import 'tela_nova_meta.dart';
+import 'tela_perfil.dart';
 
 // AVISO: existe um botão TEMPORÁRIO "[DEV] Testar Metas" na tela_login.dart
 // que abre essa tela direto, só para facilitar o desenvolvimento do módulo
@@ -235,12 +238,18 @@ class _TelaMetasState extends State<TelaMetas> {
                           children: [
                             _IconeCirculo(
                               icone: Icons.notifications_outlined,
-                              onTap: () => avisoSemAcao('Notificações'),
+                              onTap: () => Navigator.push(
+                                context,
+                                MaterialPageRoute(builder: (_) => TelaNotificacoes()),
+                              ),
                             ),
                             const SizedBox(width: 10),
                             _IconeCirculo(
                               icone: Icons.person_outline,
-                              onTap: () => avisoSemAcao('Perfil'),
+                              onTap: () => Navigator.push(
+                                context,
+                                MaterialPageRoute(builder: (_) => const TelaPerfil()),
+                              ),
                             ),
                           ],
                         ),
@@ -348,7 +357,10 @@ class _TelaMetasState extends State<TelaMetas> {
           context,
           MaterialPageRoute(builder: (_) => const TelaCategorias()),
         ),
-        onInsightsTap: () => avisoSemAcao('Insights'),
+        onInsightsTap: () => Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const TelaInsights()),
+        ),
         onAddTap: () => abrirNovaMeta(),
       ),
       ),
