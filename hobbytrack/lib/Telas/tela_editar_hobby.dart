@@ -5,7 +5,7 @@ import 'tela_criar_hobby.dart';
 import 'tela_insights.dart';
 import 'tela_metas.dart';
 import 'tela_notificacoes.dart';
-import 'tela_perfil.dart';
+import 'tela_perfil.dart' hide CustomBottomBar;
 
 // Constantes de Cores
 const Color corRoxoApp = Color(0xFF7B2CBF);
