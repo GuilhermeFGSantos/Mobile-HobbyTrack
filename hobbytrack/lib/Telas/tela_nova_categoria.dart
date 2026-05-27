@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
-import 'tela_categorias.dart';
 import 'auth_widgets.dart';
+import 'tela_categorias.dart';
+import 'tela_insights.dart';
+import 'tela_metas.dart';
+import 'tela_notificacoes.dart';
+import 'tela_perfil.dart' hide CustomBottomBar;
 
 class TelaNovaCategoria extends StatefulWidget {
   const TelaNovaCategoria({super.key});
@@ -32,9 +36,21 @@ class _TelaNovaCategoriaState extends State<TelaNovaCategoria> {
               children: [
                 Row(
                   children: [
-                    _buildCircularIconButton(Icons.notifications_sharp),
+                    _buildCircularIconButton(
+                      Icons.notifications_sharp,
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => TelaNotificacoes()),
+                      ),
+                    ),
                     const SizedBox(width: 10),
-                    _buildCircularIconButton(Icons.person_sharp),
+                    _buildCircularIconButton(
+                      Icons.person_sharp,
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const TelaPerfil()),
+                      ),
+                    ),
                   ],
                 ),
               ],
@@ -135,11 +151,22 @@ class _TelaNovaCategoriaState extends State<TelaNovaCategoria> {
             ),
           ),
 
-          const Positioned(
+          Positioned(
             bottom: 0,
             left: 0,
             right: 0,
-            child: CustomBottomBar(activeIndex: 2),
+            child: CustomBottomBar(
+              activeIndex: 2,
+              onHomeTap: () => Navigator.pop(context),
+              onMetasTap: () => Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(builder: (_) => const TelaMetas()),
+              ),
+              onInsightsTap: () => Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(builder: (_) => const TelaInsights()),
+              ),
+            ),
           ),
         ],
       ),
@@ -171,15 +198,18 @@ class _TelaNovaCategoriaState extends State<TelaNovaCategoria> {
     ),
   );
 
-  Widget _buildCircularIconButton(IconData icon) {
-    return Container(
-      width: 36,
-      height: 36,
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        shape: BoxShape.circle,
+  Widget _buildCircularIconButton(IconData icon, {VoidCallback? onTap}) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 36,
+        height: 36,
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          shape: BoxShape.circle,
+        ),
+        child: Icon(icon, color: Colors.grey.shade700, size: 20),
       ),
-      child: Icon(icon, color: Colors.grey.shade700, size: 20),
     );
   }
 }

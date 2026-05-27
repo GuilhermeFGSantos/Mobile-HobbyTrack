@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'tela_criar_hobby.dart';
+import 'tela_notificacoes.dart';
 
 class TelaAlterarSenha extends StatefulWidget {
   const TelaAlterarSenha({super.key});
@@ -139,16 +141,10 @@ class _TelaAlterarSenhaState extends State<TelaAlterarSenha> {
                             ),
 
                             InkWell(
-                              onTap: () {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text(
-                                      'Notificações serão conectadas depois.',
-                                    ),
-                                    duration: Duration(seconds: 1),
-                                  ),
-                                );
-                              },
+                              onTap: () => Navigator.push(
+                                context,
+                                MaterialPageRoute(builder: (_) => TelaNotificacoes()),
+                              ),
                               borderRadius: BorderRadius.circular(50),
                               child: Container(
                                 width: 40,
@@ -334,11 +330,14 @@ class _TelaAlterarSenhaState extends State<TelaAlterarSenha> {
       ),
 
       bottomNavigationBar: CustomBottomBar(
-        onHomeTap: () => botaoMenuSemAcao('Home'),
-        onMetasTap: () => botaoMenuSemAcao('Metas'),
-        onCategoriasTap: () => botaoMenuSemAcao('Categorias'),
-        onInsightsTap: () => botaoMenuSemAcao('Insights'),
-        onAddTap: botaoAdicionar,
+        onHomeTap: () => Navigator.pop(context),
+        onMetasTap: () => Navigator.pop(context),
+        onCategoriasTap: () => Navigator.pop(context),
+        onInsightsTap: () => Navigator.pop(context),
+        onAddTap: () => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const CriarHobby()),
+        ),
       ),
     );
   }

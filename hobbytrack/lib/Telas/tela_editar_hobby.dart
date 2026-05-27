@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'auth_widgets.dart';
+import 'tela_notificacoes.dart';
+import 'tela_perfil.dart';
 
 // Constantes de Cores
 const Color corRoxoApp = Color(0xFF7B2CBF);
@@ -134,7 +136,7 @@ class EditarHobby extends StatelessWidget {
                                 borderRadius: BorderRadius.circular(25),
                               ),
                               child: ElevatedButton(
-                                onPressed: () {},
+                                onPressed: () => Navigator.maybePop(context),
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: Colors.transparent,
                                   shadowColor: Colors.transparent,
@@ -171,9 +173,21 @@ class EditarHobby extends StatelessWidget {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  _buildHeaderCircleIcon(Icons.notifications),
+                  _buildHeaderCircleIcon(
+                    Icons.notifications,
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => TelaNotificacoes()),
+                    ),
+                  ),
                   const SizedBox(width: 10),
-                  _buildHeaderCircleIcon(Icons.person),
+                  _buildHeaderCircleIcon(
+                    Icons.person,
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const TelaPerfil()),
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -185,15 +199,18 @@ class EditarHobby extends StatelessWidget {
 
   // --- MÉTODOS AUXILIARES DE WIDGETS ---
 
-  Widget _buildHeaderCircleIcon(IconData icon) {
-    return Container(
-      width: 42,
-      height: 42,
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        shape: BoxShape.circle,
+  Widget _buildHeaderCircleIcon(IconData icon, {VoidCallback? onTap}) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 42,
+        height: 42,
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          shape: BoxShape.circle,
+        ),
+        child: Icon(icon, color: Colors.grey[600], size: 24),
       ),
-      child: Icon(icon, color: Colors.grey[600], size: 24),
     );
   }
 

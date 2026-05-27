@@ -346,8 +346,19 @@ class TopTabs extends StatelessWidget {
 
 class CustomBottomBar extends StatelessWidget {
   final int activeIndex;
+  final VoidCallback? onHomeTap;
+  final VoidCallback? onMetasTap;
+  final VoidCallback? onCategoriasTap;
+  final VoidCallback? onInsightsTap;
 
-  const CustomBottomBar({super.key, required this.activeIndex});
+  const CustomBottomBar({
+    super.key,
+    required this.activeIndex,
+    this.onHomeTap,
+    this.onMetasTap,
+    this.onCategoriasTap,
+    this.onInsightsTap,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -361,19 +372,11 @@ class CustomBottomBar extends StatelessWidget {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
-              _buildBottomItem(Icons.home_outlined, 'Home', activeIndex == 0),
-              _buildBottomItem(Icons.track_changes, 'Metas', activeIndex == 1),
+              _buildBottomItem(Icons.home_outlined, 'Home', activeIndex == 0, onHomeTap),
+              _buildBottomItem(Icons.track_changes, 'Metas', activeIndex == 1, onMetasTap),
               const SizedBox(width: 45),
-              _buildBottomItem(
-                Icons.grid_view_rounded,
-                'Categorias',
-                activeIndex == 2,
-              ),
-              _buildBottomItem(
-                Icons.bar_chart_rounded,
-                'Insights',
-                activeIndex == 3,
-              ),
+              _buildBottomItem(Icons.grid_view_rounded, 'Categorias', activeIndex == 2, onCategoriasTap),
+              _buildBottomItem(Icons.bar_chart_rounded, 'Insights', activeIndex == 3, onInsightsTap),
             ],
           ),
         ),
@@ -381,22 +384,25 @@ class CustomBottomBar extends StatelessWidget {
     );
   }
 
-  Widget _buildBottomItem(IconData icon, String label, bool isActive) {
+  Widget _buildBottomItem(IconData icon, String label, bool isActive, VoidCallback? onTap) {
     final color = isActive ? roxo : Colors.grey.shade600;
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Icon(icon, color: color, size: 22),
-        const SizedBox(height: 2),
-        Text(
-          label,
-          style: TextStyle(
-            color: color,
-            fontSize: 10,
-            fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
+    return GestureDetector(
+      onTap: onTap,
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(icon, color: color, size: 22),
+          const SizedBox(height: 2),
+          Text(
+            label,
+            style: TextStyle(
+              color: color,
+              fontSize: 10,
+              fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }

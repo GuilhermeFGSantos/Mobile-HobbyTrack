@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:hobbytrack/Telas/tela_categorias.dart';
 import 'package:hobbytrack/Telas/tela_criar_hobby.dart';
+import 'package:hobbytrack/Telas/tela_editar_hobby.dart';
 import 'package:hobbytrack/Telas/tela_insights.dart';
 import 'package:hobbytrack/Telas/tela_metas.dart';
 import 'package:hobbytrack/Telas/tela_notificacoes.dart';
@@ -602,7 +603,13 @@ class _CardHobby extends StatelessWidget {
                 child: Icon(icone, color: corIcone, size: 22),
               ),
               const Spacer(),
-              const Icon(Icons.more_vert, size: 18, color: texto),
+              GestureDetector(
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const EditarHobby()),
+                ),
+                child: const Icon(Icons.more_vert, size: 18, color: texto),
+              ),
             ],
           ),
           const SizedBox(height: 8),
@@ -895,19 +902,25 @@ class _CardAtividadeRisco extends StatelessWidget {
             child: Row(
               children: [
                 Expanded(
-                  child: Container(
-                    height: 38,
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(10),
-                      color: roxo,
+                  child: GestureDetector(
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const CriarHobby()),
                     ),
-                    child: const Text(
-                      'Retomar agora',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
+                    child: Container(
+                      height: 38,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(10),
+                        color: roxo,
+                      ),
+                      child: const Text(
+                        'Retomar agora',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
                     ),
                   ),
