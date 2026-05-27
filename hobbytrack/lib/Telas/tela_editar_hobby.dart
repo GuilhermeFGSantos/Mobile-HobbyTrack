@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
 import 'auth_widgets.dart';
+import 'tela_categorias.dart';
+import 'tela_criar_hobby.dart';
+import 'tela_insights.dart';
+import 'tela_metas.dart';
 import 'tela_notificacoes.dart';
 import 'tela_perfil.dart';
 
@@ -189,6 +193,29 @@ class EditarHobby extends StatelessWidget {
                     ),
                   ),
                 ],
+              ),
+            ),
+
+            // --- 3. BARRA DE NAVEGAÇÃO INFERIOR ---
+            Positioned(
+              bottom: 0,
+              left: 0,
+              right: 0,
+              child: CustomBottomBar(
+                activeIndex: 0,
+                onHomeTap: () => Navigator.maybePop(context),
+                onMetasTap: () => Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(builder: (_) => const TelaMetas()),
+                ),
+                onCategoriasTap: () => Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(builder: (_) => const TelaCategorias()),
+                ),
+                onInsightsTap: () => Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(builder: (_) => const TelaInsights()),
+                ),
               ),
             ),
           ],
