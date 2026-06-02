@@ -49,39 +49,24 @@ IconData _iconeParaNome(String nome) {
 // ---------------------------------------------------------------------------
 // Filtro por categoria (diálogo)
 // ---------------------------------------------------------------------------
-void _abrirFiltro(BuildContext context) {
-  showDialog(
-    context: context,
-    barrierColor: Colors.black.withValues(alpha: 0.25),
-    builder: (_) => const Dialog(
-      backgroundColor: Colors.white,
-      insetPadding: EdgeInsets.symmetric(horizontal: 40, vertical: 80),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.all(Radius.circular(18)),
-      ),
-      child: _FiltroSheet(),
-    ),
-  );
-}
-
 class _FiltroSheet extends StatefulWidget {
-  const _FiltroSheet();
+  final List<String> opcoes;
+  final String selecionadoAtual;
+  const _FiltroSheet({required this.opcoes, required this.selecionadoAtual});
 
   @override
   State<_FiltroSheet> createState() => _FiltroSheetState();
 }
 
 class _FiltroSheetState extends State<_FiltroSheet> {
-  String selecionado = 'Todos';
+  late String selecionado;
   final TextEditingController _busca = TextEditingController();
 
-  static const List<_OpcaoFiltro> _opcoes = [
-    _OpcaoFiltro('Todos', Icons.apps_rounded, roxo),
-    _OpcaoFiltro('Leitura', Icons.menu_book_rounded, Color(0xFF8FC79A)),
-    _OpcaoFiltro('Violino', Icons.music_note_rounded, laranja),
-    _OpcaoFiltro('Pintura', Icons.brush_rounded, Color(0xFFB39DDB)),
-    _OpcaoFiltro('Esportes', Icons.sports_basketball_rounded, Color(0xFF64B5F6)),
-  ];
+  @override
+  void initState() {
+    super.initState();
+    selecionado = widget.selecionadoAtual;
+  }
 
   @override
   void dispose() {
@@ -92,9 +77,11 @@ class _FiltroSheetState extends State<_FiltroSheet> {
   @override
   Widget build(BuildContext context) {
     final termo = _busca.text.trim().toLowerCase();
+    // 'Todos' sempre aparece no topo; depois os nomes vindos do Firestore
+    final todasOpcoes = ['Todos', ...widget.opcoes];
     final lista = termo.isEmpty
-        ? _opcoes
-        : _opcoes.where((o) => o.nome.toLowerCase().contains(termo)).toList();
+        ? todasOpcoes
+        : todasOpcoes.where((n) => n.toLowerCase().contains(termo)).toList();
 
     return Column(
       mainAxisSize: MainAxisSize.min,
@@ -148,11 +135,12 @@ class _FiltroSheetState extends State<_FiltroSheet> {
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             itemCount: lista.length,
             itemBuilder: (_, i) {
-              final o = lista[i];
-              final ativo = o.nome == selecionado;
+              final nome = lista[i];
+              final ativo = nome == selecionado;
+              final icone = nome == 'Todos' ? Icons.apps_rounded : _iconeParaNome(nome.toLowerCase());
               return InkWell(
                 borderRadius: BorderRadius.circular(12),
-                onTap: () => setState(() => selecionado = o.nome),
+                onTap: () => setState(() => selecionado = nome),
                 child: Container(
                   margin: const EdgeInsets.symmetric(vertical: 4),
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
@@ -175,15 +163,15 @@ class _FiltroSheetState extends State<_FiltroSheet> {
                         width: 30,
                         height: 30,
                         decoration: BoxDecoration(
-                          color: o.cor.withValues(alpha: 0.25),
+                          color: roxo.withValues(alpha: 0.15),
                           shape: BoxShape.circle,
                         ),
                         alignment: Alignment.center,
-                        child: Icon(o.icone, color: o.cor, size: 18),
+                        child: Icon(icone, color: roxo, size: 18),
                       ),
                       const SizedBox(width: 12),
                       Text(
-                        o.nome,
+                        nome,
                         style: TextStyle(
                           fontSize: 14,
                           fontWeight: ativo ? FontWeight.w700 : FontWeight.w500,
@@ -223,12 +211,6 @@ class _FiltroSheetState extends State<_FiltroSheet> {
   }
 }
 
-class _OpcaoFiltro {
-  final String nome;
-  final IconData icone;
-  final Color cor;
-  const _OpcaoFiltro(this.nome, this.icone, this.cor);
-}
 
 // ---------------------------------------------------------------------------
 // TelaHome — conectada ao Firebase Auth e ao Firestore
@@ -255,6 +237,7 @@ class _TelaHomeState extends State<TelaHome> {
   final _db = FirebaseFirestore.instance;
 
   User? _usuario;
+  String _filtroAtivo = 'Todos';
 
   @override
   void initState() {
@@ -460,6 +443,8 @@ class _TelaHomeState extends State<TelaHome> {
                                   docs: docs,
                                   carregando: carregando,
                                   onExcluir: _excluirHobby,
+                                  filtroAtivo: _filtroAtivo,
+                                  onFiltroAlterado: (f) => setState(() => _filtroAtivo = f),
                                 ),
                                 const SizedBox(height: 22),
                                 // Card de evolução com contagem real de hobbies
@@ -668,15 +653,31 @@ class _SecaoHobbiesAtivos extends StatelessWidget {
   final List<QueryDocumentSnapshot<Map<String, dynamic>>> docs;
   final bool carregando;
   final Future<void> Function(String id) onExcluir;
+  final String filtroAtivo;
+  final ValueChanged<String> onFiltroAlterado;
 
   const _SecaoHobbiesAtivos({
     required this.docs,
     required this.carregando,
     required this.onExcluir,
+    required this.filtroAtivo,
+    required this.onFiltroAlterado,
   });
 
   @override
   Widget build(BuildContext context) {
+    // Nomes únicos dos hobbies para popular o filtro
+    final nomesUnicos = docs
+        .map((d) => d.data()['nome'] as String? ?? '')
+        .where((n) => n.isNotEmpty)
+        .toSet()
+        .toList();
+
+    // Aplica o filtro selecionado
+    final docsFiltrados = filtroAtivo == 'Todos'
+        ? docs
+        : docs.where((d) => (d.data()['nome'] as String? ?? '') == filtroAtivo).toList();
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -688,9 +689,36 @@ class _SecaoHobbiesAtivos extends StatelessWidget {
                 'Hobbies ativos',
                 style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: Color(0xFF2B2B2B)),
               ),
+              if (filtroAtivo != 'Todos')
+                Container(
+                  margin: const EdgeInsets.only(left: 8),
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: roxo.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Text(
+                    filtroAtivo,
+                    style: const TextStyle(fontSize: 11, color: roxo, fontWeight: FontWeight.w600),
+                  ),
+                ),
               const Spacer(),
               GestureDetector(
-                onTap: () => _abrirFiltro(context),
+                onTap: () async {
+                  final resultado = await showDialog<String>(
+                    context: context,
+                    barrierColor: Colors.black.withValues(alpha: 0.25),
+                    builder: (_) => Dialog(
+                      backgroundColor: Colors.white,
+                      insetPadding: const EdgeInsets.symmetric(horizontal: 40, vertical: 80),
+                      shape: const RoundedRectangleBorder(
+                        borderRadius: BorderRadius.all(Radius.circular(18)),
+                      ),
+                      child: _FiltroSheet(opcoes: nomesUnicos, selecionadoAtual: filtroAtivo),
+                    ),
+                  );
+                  if (resultado != null) onFiltroAlterado(resultado);
+                },
                 behavior: HitTestBehavior.opaque,
                 child: const Padding(
                   padding: EdgeInsets.all(4),
@@ -706,7 +734,7 @@ class _SecaoHobbiesAtivos extends StatelessWidget {
             height: 210,
             child: Center(child: CircularProgressIndicator(color: roxo)),
           )
-        else if (docs.isEmpty)
+        else if (docsFiltrados.isEmpty)
           const _EmptyHobbies()
         else
           SizedBox(
@@ -714,13 +742,12 @@ class _SecaoHobbiesAtivos extends StatelessWidget {
             child: ListView.separated(
               scrollDirection: Axis.horizontal,
               padding: const EdgeInsets.symmetric(horizontal: 16),
-              itemCount: docs.length,
+              itemCount: docsFiltrados.length,
               separatorBuilder: (context, index) => const SizedBox(width: 12),
               itemBuilder: (context, i) {
-                final d = docs[i].data();
+                final d = docsFiltrados[i].data();
                 return _CardHobby(
-                  id: docs[i].id,
-                  // icone e cor são mapeados a partir do nome salvo no Firestore
+                  id: docsFiltrados[i].id,
                   icone: _iconeParaNome(d['icone_nome'] as String? ?? ''),
                   corIcone: Color(d['cor'] as int? ?? 0xFF8FC79A),
                   nome: d['nome'] as String? ?? '',
@@ -729,7 +756,7 @@ class _SecaoHobbiesAtivos extends StatelessWidget {
                   meta: d['meta'] as int? ?? 1,
                   streak: d['streak'] as String?,
                   proximo: d['proximo'] as String? ?? '',
-                  onExcluir: () => onExcluir(docs[i].id),
+                  onExcluir: () => onExcluir(docsFiltrados[i].id),
                 );
               },
             ),
