@@ -3,6 +3,7 @@ import 'auth_widgets.dart';
 import 'tela_cadastro.dart';
 import 'tela_recuperar_senha.dart';
 import 'tela_home.dart';
+import '../services/auth_service.dart';
 
 class TelaLogin extends StatefulWidget {
   const TelaLogin({super.key});
@@ -12,7 +13,103 @@ class TelaLogin extends StatefulWidget {
 }
 
 class _TelaLoginState extends State<TelaLogin> {
+  final emailController = TextEditingController();
+  final senhaController = TextEditingController();
+
+  final AuthService authService = AuthService();
+
   bool lembrarSenha = true;
+  bool carregando = false;
+
+  @override
+  void dispose() {
+    emailController.dispose();
+    senhaController.dispose();
+    super.dispose();
+  }
+
+  void mostrarMensagem(String mensagem) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(mensagem),
+        backgroundColor: Colors.red,
+        behavior: SnackBarBehavior.floating,
+        margin: const EdgeInsets.all(16),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+      ),
+    );
+  }
+
+  Future<void> entrarComEmailSenha() async {
+    final email = emailController.text.trim();
+    final senha = senhaController.text.trim();
+
+    if (email.isEmpty || senha.isEmpty) {
+      mostrarMensagem('Preencha o e-mail e a senha.');
+      return;
+    }
+
+    setState(() {
+      carregando = true;
+    });
+
+    try {
+      await authService.entrarComEmailSenha(
+        email: email,
+        senha: senha,
+      );
+
+      if (!mounted) return;
+
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (_) => const TelaHome(),
+        ),
+      );
+    } catch (e) {
+      mostrarMensagem(
+        'E-mail ou senha inválidos. Use uma conta @souunit.com.br.',
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          carregando = false;
+        });
+      }
+    }
+  }
+
+  Future<void> entrarComGoogle() async {
+    setState(() {
+      carregando = true;
+    });
+
+    try {
+      await authService.entrarComGoogle();
+
+      if (!mounted) return;
+
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (_) => const TelaHome(),
+        ),
+      );
+    } catch (e) {
+      mostrarMensagem(
+        'Acesso permitido apenas com e-mail @souunit.com.br.',
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          carregando = false;
+        });
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -49,13 +146,18 @@ class _TelaLoginState extends State<TelaLogin> {
 
                 const SizedBox(height: 20),
 
-                const AuthInput(label: 'Email'),
+                AuthInput(
+                  label: 'Email',
+                  controller: emailController,
+                  keyboardType: TextInputType.emailAddress,
+                ),
 
                 const SizedBox(height: 14),
 
-                const AuthInput(
+                AuthInput(
                   label: 'senha',
                   obscure: true,
+                  controller: senhaController,
                 ),
 
                 Align(
@@ -86,19 +188,23 @@ class _TelaLoginState extends State<TelaLogin> {
 
                 const SizedBox(height: 14),
 
-                GradientButton(
-                  text: 'Entrar',
-                  onPressed: () {
-                    Navigator.pushReplacement(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const TelaHome(),
+                carregando
+                    ? const CircularProgressIndicator(
+                        color: laranja,
+                      )
+                    : GradientButton(
+                        text: 'Entrar',
+                        onPressed: entrarComEmailSenha,
                       ),
-                    );
-                  },
+
+                const SizedBox(height: 12),
+
+                GoogleButton(
+                  onPressed: entrarComGoogle,
+                  carregando: carregando,
                 ),
 
-                const SizedBox(height: 22),
+                const SizedBox(height: 18),
 
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -138,9 +244,7 @@ class _TelaLoginState extends State<TelaLogin> {
                             width: 16,
                             height: 16,
                             decoration: BoxDecoration(
-                              color: lembrarSenha
-                                  ? Colors.green
-                                  : Colors.grey,
+                              color: lembrarSenha ? Colors.green : Colors.grey,
                               shape: BoxShape.circle,
                             ),
                           ),
