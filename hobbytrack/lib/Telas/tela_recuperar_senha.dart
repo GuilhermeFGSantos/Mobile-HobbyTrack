@@ -88,15 +88,21 @@ class _TelaRecuperarSenhaState extends State<TelaRecuperarSenha> {
 
   @override
   Widget build(BuildContext context) {
+    final altura = MediaQuery.of(context).size.height;
+    final largura = MediaQuery.of(context).size.width;
+
     return AuthBackground(
-      child: Stack(
-        children: [
-          Positioned(
-            top: 300,
-            left: 38,
-            right: 38,
+      child: SafeArea(
+        child: SingleChildScrollView(
+          physics: const ClampingScrollPhysics(),
+          child: Padding(
+            padding: EdgeInsets.symmetric(
+              horizontal: largura * 0.10,
+            ),
             child: Column(
               children: [
+                SizedBox(height: altura * 0.20),
+
                 Container(
                   width: 118,
                   height: 118,
@@ -116,7 +122,7 @@ class _TelaRecuperarSenhaState extends State<TelaRecuperarSenha> {
                   ),
                 ),
 
-                const SizedBox(height: 20),
+                SizedBox(height: altura * 0.025),
 
                 const Text(
                   'Recuperar senha',
@@ -127,7 +133,7 @@ class _TelaRecuperarSenhaState extends State<TelaRecuperarSenha> {
                   ),
                 ),
 
-                const SizedBox(height: 10),
+                SizedBox(height: altura * 0.012),
 
                 const Text(
                   'Informe seu e-mail institucional para\nreceber o link de redefinição de senha.',
@@ -139,7 +145,7 @@ class _TelaRecuperarSenhaState extends State<TelaRecuperarSenha> {
                   ),
                 ),
 
-                const SizedBox(height: 34),
+                SizedBox(height: altura * 0.035),
 
                 AuthInput(
                   label: 'E-mail institucional',
@@ -147,7 +153,7 @@ class _TelaRecuperarSenhaState extends State<TelaRecuperarSenha> {
                   keyboardType: TextInputType.emailAddress,
                 ),
 
-                const SizedBox(height: 30),
+                SizedBox(height: altura * 0.03),
 
                 carregando
                     ? const CircularProgressIndicator(
@@ -158,7 +164,7 @@ class _TelaRecuperarSenhaState extends State<TelaRecuperarSenha> {
                         onPressed: enviarRecuperacaoSenha,
                       ),
 
-                const SizedBox(height: 22),
+                SizedBox(height: altura * 0.022),
 
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -190,10 +196,12 @@ class _TelaRecuperarSenhaState extends State<TelaRecuperarSenha> {
                     ),
                   ],
                 ),
+
+                const SizedBox(height: 40),
               ],
             ),
           ),
-        ],
+        ),
       ),
     );
   }

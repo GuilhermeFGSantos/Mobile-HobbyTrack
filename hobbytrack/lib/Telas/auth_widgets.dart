@@ -22,92 +22,73 @@ class AuthBackground extends StatelessWidget {
 
     return Scaffold(
       backgroundColor: fundoFora,
-      body: LayoutBuilder(
-        builder: (context, constraints) {
-          const double larguraBase = 390;
-          const double alturaBase = 844;
+      resizeToAvoidBottomInset: true,
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 430),
+          child: SizedBox.expand(
+            child: Stack(
+              children: [
+                Container(
+                  color: const Color(0xFFF8F3EC),
+                ),
 
-          final bool telaGrande = constraints.maxWidth > 600;
-
-          final double larguraTela =
-              telaGrande ? 390 : constraints.maxWidth;
-
-          final double alturaTela =
-              telaGrande ? constraints.maxHeight : constraints.maxHeight;
-
-          return Center(
-            child: SizedBox(
-              width: larguraTela,
-              height: alturaTela,
-              child: FittedBox(
-                fit: BoxFit.fill,
-                child: SizedBox(
-                  width: larguraBase,
-                  height: alturaBase,
-                  child: Stack(
-                    children: [
-                      Container(
-                        width: double.infinity,
-                        height: double.infinity,
-                        color: const Color(0xFFF8F3EC),
+                Positioned(
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  height: cadastro ? 260 : 280,
+                  child: Container(
+                    decoration: const BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.centerRight,
+                        colors: [
+                          Color(0xFF7C3AED),
+                          Color(0xFFC34CA3),
+                          Color(0xFFFF7A00),
+                        ],
+                        stops: [0.0, 0.55, 1.0],
                       ),
-
-                      Positioned(
-                        top: 0,
-                        left: 0,
-                        right: 0,
-                        height: cadastro ? 280 : 300,
-                        child: Container(
-                          decoration: const BoxDecoration(
-                            gradient: LinearGradient(
-                              begin: Alignment.topLeft,
-                              end: Alignment.centerRight,
-                              colors: [
-                                Color(0xFF7C3AED),
-                                Color(0xFFC34CA3),
-                                Color(0xFFFF7A00),
-                              ],
-                              stops: [0.0, 0.55, 1.0],
-                            ),
-                          ),
-                        ),
-                      ),
-
-                     Positioned(
-  top: cadastro ? 90 : 100,
-  left: 0,
-  right: 0,
-  bottom: 0,
-  child: TweenAnimationBuilder<double>(
-    duration: const Duration(milliseconds: 650),
-    curve: Curves.easeOutBack,
-    tween: Tween<double>(
-      begin: cadastro ? -0.18 : 0.18,
-      end: 0,
-    ),
-    builder: (context, angle, child) {
-      return Transform.rotate(
-        angle: angle,
-        alignment: Alignment.topCenter,
-        child: child,
-      );
-    },
-    child: Image.asset(
-      formaBranca,
-      fit: cadastro ? BoxFit.fitWidth : BoxFit.cover,
-      alignment: cadastro ? Alignment.topCenter : Alignment.center,
-    ),
-  ),
-),
-
-                      child,
-                    ],
+                    ),
                   ),
                 ),
-              ),
+
+                Positioned(
+                  top: cadastro ? 82 : 95,
+                  left: 0,
+                  right: 0,
+                  child: TweenAnimationBuilder<double>(
+                    key: ValueKey(cadastro),
+                    duration: const Duration(milliseconds: 750),
+                    curve: Curves.easeOutBack,
+                    tween: Tween<double>(
+                      begin: cadastro ? -0.28 : 0.28,
+                      end: 0,
+                    ),
+                    builder: (context, angle, child) {
+                      return Transform.rotate(
+                        angle: angle,
+                        alignment: Alignment.topCenter,
+                        child: child,
+                      );
+                    },
+                    child: Image.asset(
+                      formaBranca,
+                      width: double.infinity,
+                      fit: BoxFit.fitWidth,
+                      alignment: Alignment.topCenter,
+                    ),
+                  ),
+                ),
+
+                Positioned.fill(
+                  child: child,
+                ),
+              ],
             ),
-          );
-        },
+          ),
+        ),
       ),
     );
   }
@@ -134,8 +115,8 @@ class AuthLock extends StatelessWidget {
   Widget build(BuildContext context) {
     return Image.asset(
       'assets/cadeado.png',
-      width: 130,
-      height: 130,
+      width: 120,
+      height: 120,
       fit: BoxFit.contain,
     );
   }
@@ -339,10 +320,7 @@ class TopTabs extends StatelessWidget {
                   gradient: cadastroSelecionado
                       ? null
                       : const LinearGradient(
-                          colors: [
-                            roxo,
-                            laranja,
-                          ],
+                          colors: [roxo, laranja],
                         ),
                 ),
                 child: Text(
@@ -365,10 +343,7 @@ class TopTabs extends StatelessWidget {
                   borderRadius: BorderRadius.circular(22),
                   gradient: cadastroSelecionado
                       ? const LinearGradient(
-                          colors: [
-                            roxo,
-                            laranja,
-                          ],
+                          colors: [roxo, laranja],
                         )
                       : null,
                 ),
@@ -406,9 +381,7 @@ class HomeBackground extends StatelessWidget {
           builder: (context, constraints) {
             return Center(
               child: ConstrainedBox(
-                constraints: const BoxConstraints(
-                  maxWidth: 430,
-                ),
+                constraints: const BoxConstraints(maxWidth: 430),
                 child: SizedBox(
                   width: double.infinity,
                   height: constraints.maxHeight,

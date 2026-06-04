@@ -99,46 +99,47 @@ class _TelaCadastroState extends State<TelaCadastro> {
 
   @override
   Widget build(BuildContext context) {
+    final altura = MediaQuery.of(context).size.height;
+    final largura = MediaQuery.of(context).size.width;
+
     return AuthBackground(
       cadastro: true,
-      child: Stack(
-        children: [
-          Positioned(
-            top: 250,
-            left: 0,
-            right: 0,
-            child: Center(
-              child: TopTabs(
-                cadastroSelecionado: true,
-                entrar: () {
-                  Navigator.pushReplacement(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => const TelaLogin(),
-                    ),
-                  );
-                },
-                cadastrar: () {},
-              ),
+      child: SafeArea(
+        child: SingleChildScrollView(
+          physics: const ClampingScrollPhysics(),
+          child: Padding(
+            padding: EdgeInsets.symmetric(
+              horizontal: largura * 0.10,
             ),
-          ),
-
-          Positioned(
-            top: 315,
-            left: 45,
-            right: 45,
             child: Column(
               children: [
+                SizedBox(height: altura * 0.18),
+
+                TopTabs(
+                  cadastroSelecionado: true,
+                  entrar: () {
+                    Navigator.pushReplacement(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const TelaLogin(),
+                      ),
+                    );
+                  },
+                  cadastrar: () {},
+                ),
+
+                SizedBox(height: altura * 0.04),
+
                 const AuthLogo(),
 
-                const SizedBox(height: 18),
+                SizedBox(height: altura * 0.008),
 
                 AuthInput(
                   label: 'Usuário',
                   controller: usuarioController,
                 ),
 
-                const SizedBox(height: 12),
+                SizedBox(height: altura * 0.006),
 
                 AuthInput(
                   label: 'Email',
@@ -146,7 +147,7 @@ class _TelaCadastroState extends State<TelaCadastro> {
                   keyboardType: TextInputType.emailAddress,
                 ),
 
-                const SizedBox(height: 12),
+                SizedBox(height: altura * 0.006),
 
                 AuthInput(
                   label: 'senha',
@@ -154,7 +155,7 @@ class _TelaCadastroState extends State<TelaCadastro> {
                   controller: senhaController,
                 ),
 
-                const SizedBox(height: 12),
+                SizedBox(height: altura * 0.006),
 
                 AuthInput(
                   label: 'Confirmação de senha',
@@ -162,7 +163,7 @@ class _TelaCadastroState extends State<TelaCadastro> {
                   controller: confirmarSenhaController,
                 ),
 
-                const SizedBox(height: 26),
+                SizedBox(height: altura * 0.02),
 
                 carregando
                     ? const CircularProgressIndicator(
@@ -172,10 +173,12 @@ class _TelaCadastroState extends State<TelaCadastro> {
                         text: 'Cadastrar',
                         onPressed: cadastrarUsuario,
                       ),
+
+                const SizedBox(height: 40),
               ],
             ),
           ),
-        ],
+        ),
       ),
     );
   }
