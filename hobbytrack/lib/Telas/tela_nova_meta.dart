@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'auth_widgets.dart';
 import 'meta_model.dart';
 import 'mobile_frame.dart';
 
@@ -118,7 +119,7 @@ class _TelaNovaMetaState extends State<TelaNovaMeta> {
                 child: ConstrainedBox(
                   constraints: const BoxConstraints(maxWidth: 430),
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 22),
+                    padding: const EdgeInsets.symmetric(horizontal: 24),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -139,13 +140,13 @@ class _TelaNovaMetaState extends State<TelaNovaMeta> {
                             ),
                           ],
                         ),
-                        const SizedBox(height: 80),
+                        const SizedBox(height: 64),
 
                         Text(
                           editando ? 'Editar Meta' : 'Nova Meta',
                           style: const TextStyle(
-                            fontSize: 22,
-                            fontWeight: FontWeight.w700,
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
                             color: Colors.black,
                           ),
                         ),
@@ -276,44 +277,46 @@ class _HeaderNovaMeta extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return CustomPaint(
-      size: const Size(double.infinity, 130),
-      painter: _NovaMetaHeaderPainter(),
+    // Mesmo header em onda multicolor da TelaCategorias (HomeBackground):
+    // faixa com SweepGradient roxo→laranja→roxo recortada pela HomeClipper.
+    return SizedBox(
+      height: 300,
+      width: double.infinity,
+      child: Stack(
+        children: [
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            child: Container(
+              height: 200,
+              decoration: const BoxDecoration(
+                gradient: SweepGradient(
+                  center: Alignment.topCenter,
+                  transform: GradientRotation(2.1),
+                  colors: [roxo, laranja, roxo],
+                  stops: [0.25, 0.63, 0.2],
+                ),
+              ),
+            ),
+          ),
+          Positioned.fill(
+            child: Align(
+              alignment: Alignment.topLeft,
+              child: ClipPath(
+                clipper: HomeClipper(),
+                child: Container(
+                  width: double.infinity,
+                  height: 300,
+                  color: _bgOffWhite,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
-}
-
-class _NovaMetaHeaderPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final rect = Rect.fromLTWH(0, 0, size.width, size.height);
-    final paint = Paint()
-      ..shader = const LinearGradient(
-        colors: [_purple, _orange],
-        begin: Alignment.topLeft,
-        end: Alignment.topRight,
-      ).createShader(rect);
-
-    final path = Path();
-    path.lineTo(0, size.height * 0.55);
-    path.cubicTo(
-      size.width * 0.22, size.height * 0.45,
-      size.width * 0.40, size.height * 0.85,
-      size.width * 0.55, size.height * 0.82,
-    );
-    path.cubicTo(
-      size.width * 0.72, size.height * 0.78,
-      size.width * 0.86, size.height * 0.55,
-      size.width, size.height * 0.60,
-    );
-    path.lineTo(size.width, 0);
-    path.close();
-
-    canvas.drawPath(path, paint);
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
 class _Rotulo extends StatelessWidget {

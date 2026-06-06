@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 
 // Wrapper que renderiza o filho dentro de um "frame" de celular (390x844)
-// centralizado, com fundo cinza ao redor. Replica o visual usado pelo
-// AuthBackground (login/cadastro), permitindo que outras telas mantenham
-// a mesma aparência de mockup quando rodando no Chrome / desktop.
+// centralizado, com fundo cinza ao redor. Usa as MESMAS medidas e o mesmo
+// comportamento do HomeBackground (TelaCategorias): um Container de tamanho
+// fixo, sem FittedBox, para que a largura fique idêntica à das demais telas
+// (o FittedBox anterior escalava o quadro para caber na altura, encolhendo
+// a largura junto e deixando a tela mais estreita que a de Categorias).
 class MobileFrame extends StatelessWidget {
   final Widget child;
 
@@ -18,16 +20,14 @@ class MobileFrame extends StatelessWidget {
     return Scaffold(
       backgroundColor: _fundoFora,
       body: Center(
-        child: FittedBox(
-          fit: BoxFit.contain,
-          child: SizedBox(
-            width: _largura,
-            height: _altura,
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(8),
-              child: child,
-            ),
+        child: Container(
+          width: _largura,
+          height: _altura,
+          clipBehavior: Clip.antiAlias,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(8),
           ),
+          child: child,
         ),
       ),
     );
