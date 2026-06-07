@@ -9,16 +9,13 @@ class AuthBackground extends StatelessWidget {
   final Widget child;
   final bool cadastro;
 
-  const AuthBackground({
-    super.key,
-    required this.child,
-    this.cadastro = false,
-  });
+  const AuthBackground({super.key, required this.child, this.cadastro = false});
 
   @override
   Widget build(BuildContext context) {
-    final String formaBranca =
-        cadastro ? 'assets/Rectangle3.png' : 'assets/Rectangle 2.png';
+    final String formaBranca = cadastro
+        ? 'assets/Rectangle3.png'
+        : 'assets/Rectangle 2.png';
 
     return Scaffold(
       backgroundColor: fundoFora,
@@ -29,9 +26,7 @@ class AuthBackground extends StatelessWidget {
           child: SizedBox.expand(
             child: Stack(
               children: [
-                Container(
-                  color: const Color(0xFFF8F3EC),
-                ),
+                Container(color: const Color(0xFFF8F3EC)),
 
                 Positioned(
                   top: 0,
@@ -82,9 +77,7 @@ class AuthBackground extends StatelessWidget {
                   ),
                 ),
 
-                Positioned.fill(
-                  child: child,
-                ),
+                Positioned.fill(child: child),
               ],
             ),
           ),
@@ -142,27 +135,15 @@ class AuthInput extends StatelessWidget {
       controller: controller,
       keyboardType: keyboardType,
       obscureText: obscure,
-      style: const TextStyle(
-        fontSize: 14,
-        color: texto,
-      ),
+      style: const TextStyle(fontSize: 14, color: texto),
       decoration: InputDecoration(
         labelText: label,
-        labelStyle: const TextStyle(
-          fontSize: 14,
-          color: texto,
-        ),
+        labelStyle: const TextStyle(fontSize: 14, color: texto),
         enabledBorder: const UnderlineInputBorder(
-          borderSide: BorderSide(
-            color: roxo,
-            width: 2,
-          ),
+          borderSide: BorderSide(color: roxo, width: 2),
         ),
         focusedBorder: const UnderlineInputBorder(
-          borderSide: BorderSide(
-            color: roxo,
-            width: 2,
-          ),
+          borderSide: BorderSide(color: roxo, width: 2),
         ),
       ),
     );
@@ -189,12 +170,7 @@ class GradientButton extends StatelessWidget {
         alignment: Alignment.center,
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(12),
-          gradient: const LinearGradient(
-            colors: [
-              laranja,
-              roxo,
-            ],
-          ),
+          gradient: const LinearGradient(colors: [laranja, roxo]),
         ),
         child: Text(
           text,
@@ -229,10 +205,7 @@ class GoogleButton extends StatelessWidget {
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: const Color(0xFFE0E0E0),
-            width: 1.2,
-          ),
+          border: Border.all(color: const Color(0xFFE0E0E0), width: 1.2),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withOpacity(0.08),
@@ -246,10 +219,7 @@ class GoogleButton extends StatelessWidget {
                 child: SizedBox(
                   width: 18,
                   height: 18,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: roxo,
-                  ),
+                  child: CircularProgressIndicator(strokeWidth: 2, color: roxo),
                 ),
               )
             : const Row(
@@ -319,9 +289,7 @@ class TopTabs extends StatelessWidget {
                   borderRadius: BorderRadius.circular(22),
                   gradient: cadastroSelecionado
                       ? null
-                      : const LinearGradient(
-                          colors: [roxo, laranja],
-                        ),
+                      : const LinearGradient(colors: [roxo, laranja]),
                 ),
                 child: Text(
                   'Entrar',
@@ -342,9 +310,7 @@ class TopTabs extends StatelessWidget {
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(22),
                   gradient: cadastroSelecionado
-                      ? const LinearGradient(
-                          colors: [roxo, laranja],
-                        )
+                      ? const LinearGradient(colors: [roxo, laranja])
                       : null,
                 ),
                 child: Text(
@@ -367,33 +333,97 @@ class TopTabs extends StatelessWidget {
 class HomeBackground extends StatelessWidget {
   final Widget child;
 
-  const HomeBackground({
-    super.key,
-    required this.child,
-  });
+  const HomeBackground({super.key, required this.child});
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: fundoFora,
-      body: SafeArea(
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            return Center(
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 430),
-                child: SizedBox(
-                  width: double.infinity,
-                  height: constraints.maxHeight,
-                  child: child,
+      body: Center(
+        child: Container(
+          width: 390,
+          height: 844,
+          decoration: BoxDecoration(
+            color: const Color(0xFFF8F3EC),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: Stack(
+            children: [
+              Positioned(
+                top: 0,
+                left: 0,
+                right: 0,
+                child: Container(
+                  height: 200,
+                  decoration: const BoxDecoration(
+                    gradient: SweepGradient(
+                      center: Alignment.topCenter,
+                      transform: GradientRotation(2.1),
+                      colors: [roxo, laranja, roxo],
+                      stops: [0.25, 0.63, 0.2],
+                    ),
+                  ),
                 ),
               ),
-            );
-          },
+
+              Positioned.fill(
+                child: Align(
+                  alignment: Alignment.topLeft,
+                  child: ClipPath(
+                    clipper: HomeClipper(),
+                    child: Container(
+                      width: double.infinity,
+                      height: 300,
+                      color: const Color(0xFFF8F3EC),
+                    ),
+                  ),
+                ),
+              ),
+
+              child,
+            ],
+          ),
         ),
       ),
     );
   }
+}
+
+class HomeClipper extends CustomClipper<Path> {
+  @override
+  Path getClip(Size size) {
+    final path = Path();
+
+    path.moveTo(0, size.height * 0.25);
+
+    path.cubicTo(
+      size.width * 0.00,
+      size.height * 0.15,
+      size.width * 0.35,
+      size.height * 0.13,
+      size.width * 0.50,
+      size.height * 0.28,
+    );
+
+    path.cubicTo(
+      size.width * 0.70,
+      size.height * 0.48,
+      size.width * 0.85,
+      size.height * 0.40,
+      size.width,
+      size.height * 0.36,
+    );
+
+    path.lineTo(size.width, size.height);
+    path.lineTo(0, size.height);
+    path.close();
+
+    return path;
+  }
+
+  @override
+  bool shouldReclip(CustomClipper<Path> oldClipper) => true;
 }
 
 class CustomBottomBar extends StatelessWidget {
@@ -491,11 +521,7 @@ class _ItemBottomBar extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            icon,
-            color: cor,
-            size: 21,
-          ),
+          Icon(icon, color: cor, size: 21),
           const SizedBox(height: 4),
           Text(
             label,

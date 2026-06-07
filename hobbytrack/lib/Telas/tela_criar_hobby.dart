@@ -1,5 +1,8 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'auth_widgets.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 // Constantes de Cores
 const Color corRoxoApp = Color(0xFF7B2CBF);
@@ -9,8 +12,134 @@ const Color corTextoSub = Color(0xFF666666);
 const Color corFundoCampos = Color(0xFFFAF6F0);
 const Color corBordaCampos = Color(0xFFD6CFC7);
 
-class CriarHobby extends StatelessWidget {
+class CriarHobby extends StatefulWidget {
   const CriarHobby({super.key});
+
+  @override
+  State<CriarHobby> createState() => _CriarHobbyState();
+}
+
+class _CriarHobbyState extends State<CriarHobby> {
+  final TextEditingController nomeController = TextEditingController();
+  final TextEditingController emojiController = TextEditingController();
+  final TextEditingController metaQuantidadeController =
+      TextEditingController();
+
+  bool repetirOpcao = true;
+  String metaQuantidade = "1";
+  String metaSelecionada = 'Minutos';
+  bool mostrarNotificacao = true;
+  List<String> diasParaSalvar = [];
+
+  TimeOfDay horarioLembrete = const TimeOfDay(hour: 10, minute: 00);
+
+  final List<bool> diasSelecionados = [
+    false,
+    true,
+    false,
+    false,
+    false,
+    false,
+    false,
+  ];
+  final List<String> nomesDias = [
+    'Dom',
+    'Seg',
+    'Ter',
+    'Qua',
+    'Qui',
+    'Sex',
+    'Sab',
+  ];
+
+  Future<void> selecionarHora(BuildContext context) async {
+    final TimeOfDay? novoHorario = await showTimePicker(
+      context: context,
+      initialTime: horarioLembrete,
+    );
+    if (novoHorario != null) {
+      setState(() {
+        horarioLembrete = novoHorario;
+      });
+    }
+  }
+
+  Future<void> salvarHobbyFirebase() async {
+    for (int i = 0; i < diasSelecionados.length; i++) {
+      if (diasSelecionados[i]) {
+        diasParaSalvar.add(nomesDias[i]);
+      }
+    }
+    if (nomeController.text.isEmpty ||
+        emojiController.text.isEmpty ||
+        metaQuantidade.trim().isEmpty ||
+        diasParaSalvar.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Erro!! Preencha todos os campos.")),
+      );
+      return;
+    }
+
+    final int? metaValorNumerico = int.tryParse(
+      metaQuantidadeController.text.trim(),
+    );
+
+    if (metaValorNumerico == null || metaValorNumerico <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            "Erro!! Insira um valor numérico válido maior que zero.",
+          ),
+        ),
+      );
+      return;
+    }
+
+    try {
+      final firestore = FirebaseFirestore.instance;
+
+      final String? userId = FirebaseAuth.instance.currentUser?.uid;
+      DocumentReference hobbyRef = await firestore.collection('hobbies').add({
+        'userId': userId,
+        'nome': nomeController.text,
+        'emoji': emojiController.text,
+        'criadoEm': FieldValue.serverTimestamp(),
+      });
+      String novoHobbyId = hobbyRef.id;
+
+      await firestore
+          .collection('hobbies')
+          .doc(novoHobbyId)
+          .collection('metas')
+          .add({
+            'meta_tipo': metaSelecionada,
+            'meta_valor': metaValorNumerico,
+            'repetir': repetirOpcao,
+            'dias_semana': diasParaSalvar,
+            'horario_lembrete':
+                '${horarioLembrete.hour.toString().padLeft(2, '0')}:${horarioLembrete.minute.toString().padLeft(2, '0')}',
+            'mostrar_notificacao': mostrarNotificacao,
+            'criadaEm': FieldValue.serverTimestamp(),
+          });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Hobby criado com sucesso!')),
+        );
+        Navigator.maybePop(context);
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Erro ao salvar: $e')));
+    }
+  }
+
+  void limpar() {
+    nomeController.dispose();
+    emojiController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -18,17 +147,14 @@ class CriarHobby extends StatelessWidget {
       child: SafeArea(
         child: Stack(
           children: [
-            // --- 1. O CONTEÚDO DO FORMULÁRIO (SCROLLABLE) ---
             Positioned.fill(
               child: SingleChildScrollView(
-                padding: EdgeInsets
-                    .zero, // Mudado para zero para a linha poder vazar 100%
+                padding: EdgeInsets.zero,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const SizedBox(height: 80),
 
-                    // --- BLOCO COM PADDING 24: SETA E TÍTULO ---
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 24),
                       child: Row(
@@ -57,7 +183,6 @@ class CriarHobby extends StatelessWidget {
                     ),
                     const SizedBox(height: 30),
 
-                    // --- LINHA DIVISÓRIA (PEGA 100% DA TELA NATURALMENTE) ---
                     const Divider(
                       color: Colors.blueGrey,
                       thickness: 0.5,
@@ -65,7 +190,6 @@ class CriarHobby extends StatelessWidget {
                     ),
                     const SizedBox(height: 30),
 
-                    // --- BLOCO COM PADDING 24: RESTANTE DO FORMULÁRIO ---
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 24),
                       child: Column(
@@ -80,7 +204,11 @@ class CriarHobby extends StatelessWidget {
                             ),
                           ),
                           const SizedBox(height: 6),
-                          _buildCustomTextField(hintText: 'Pintura'),
+                          _buildCustomTextField(
+                            hintText: 'Teste',
+                            controller: nomeController,
+                            keyboardType: TextInputType.text,
+                          ),
 
                           const SizedBox(height: 14),
                           const Text(
@@ -92,11 +220,14 @@ class CriarHobby extends StatelessWidget {
                             ),
                           ),
                           const SizedBox(height: 6),
-                          _buildCustomTextField(hintText: '🎨'),
+                          _buildCustomTextField(
+                            hintText: '🎨',
+                            controller: emojiController,
+                            keyboardType: TextInputType.text,
+                          ),
 
                           const SizedBox(height: 20),
 
-                          // Card de Meta Diária
                           _buildMetaDiariaCard(),
 
                           const SizedBox(height: 32),
@@ -106,7 +237,9 @@ class CriarHobby extends StatelessWidget {
                               width: 230,
                               height: 50,
                               child: ElevatedButton(
-                                onPressed: () {},
+                                onPressed: () {
+                                  salvarHobbyFirebase();
+                                },
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: const Color(0xFF949494),
                                   shape: RoundedRectangleBorder(
@@ -125,7 +258,7 @@ class CriarHobby extends StatelessWidget {
                               ),
                             ),
                           ),
-                          const SizedBox(height: 120), // Espaço da Bottom Bar
+                          const SizedBox(height: 120),
                         ],
                       ),
                     ),
@@ -134,7 +267,6 @@ class CriarHobby extends StatelessWidget {
               ),
             ),
 
-            // --- 2. CONTROLE DOS ÍCONES DA DIREITA ---
             Positioned(
               top: 45,
               right: 20,
@@ -165,7 +297,12 @@ class CriarHobby extends StatelessWidget {
     );
   }
 
-  Widget _buildCustomTextField({required String hintText}) {
+  Widget _buildCustomTextField({
+    required String hintText,
+    required TextEditingController controller,
+    required TextInputType keyboardType,
+    List<TextInputFormatter>? formatters,
+  }) {
     return Container(
       height: 44,
       decoration: BoxDecoration(
@@ -175,8 +312,16 @@ class CriarHobby extends StatelessWidget {
       ),
       padding: const EdgeInsets.symmetric(horizontal: 12),
       alignment: Alignment.centerLeft,
-      child: Text(
-        hintText,
+      child: TextField(
+        controller: controller,
+        keyboardType: keyboardType,
+        inputFormatters: formatters,
+        decoration: InputDecoration(
+          hintText: hintText,
+          hintStyle: const TextStyle(color: Colors.black38, fontSize: 14),
+          border: InputBorder.none,
+          isDense: true,
+        ),
         style: const TextStyle(color: Colors.black87, fontSize: 14),
       ),
     );
@@ -222,7 +367,76 @@ class CriarHobby extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 6),
-          _buildDropdownSelector(),
+
+          Container(
+            height: 44,
+            decoration: BoxDecoration(
+              color: corFundoCampos,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: corBordaCampos, width: 1),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  flex: 2,
+                  child: TextField(
+                    controller: metaQuantidadeController,
+                    keyboardType: TextInputType.number,
+                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(color: corTextoLabels, fontSize: 14),
+                    decoration: const InputDecoration(
+                      hintText: '00',
+                      border: InputBorder.none,
+                      isDense: true,
+                      contentPadding: EdgeInsets.symmetric(horizontal: 4),
+                    ),
+                  ),
+                ),
+
+                Container(height: 24, width: 1, color: corBordaCampos),
+
+                Expanded(
+                  flex: 7,
+                  child: DropdownButtonHideUnderline(
+                    child: DropdownButton<String>(
+                      value: metaSelecionada,
+                      isExpanded: true,
+                      icon: Icon(
+                        Icons.keyboard_arrow_down_rounded,
+                        color: Colors.grey[600],
+                      ),
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      style: const TextStyle(
+                        color: Colors.black87,
+                        fontSize: 14,
+                      ),
+                      items: const [
+                        DropdownMenuItem(
+                          value: 'Minutos',
+                          child: Text('Minutos'),
+                        ),
+                        DropdownMenuItem(value: 'Horas', child: Text('Horas')),
+                        DropdownMenuItem(
+                          value: 'Páginas',
+                          child: Text('Páginas'),
+                        ),
+                        DropdownMenuItem(value: 'Vezes', child: Text('Vezes')),
+                      ],
+                      onChanged: (String? novoValor) {
+                        if (novoValor != null) {
+                          setState(() {
+                            metaSelecionada = novoValor;
+                          });
+                        }
+                      },
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
           const SizedBox(height: 14),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -235,7 +449,11 @@ class CriarHobby extends StatelessWidget {
                   color: corTextoLabels,
                 ),
               ),
-              Switch(value: true, onChanged: (v) {}, activeColor: corRoxoApp),
+              Switch(
+                value: repetirOpcao,
+                onChanged: (v) => setState(() => repetirOpcao = v),
+                activeColor: corRoxoApp,
+              ),
             ],
           ),
           const SizedBox(height: 8),
@@ -250,18 +468,23 @@ class CriarHobby extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 8),
-          Row(
-            children: [
-              _buildTimeBox('19'),
-              const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 10),
-                child: Text(
-                  ':',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
+          GestureDetector(
+            onTap: () => selecionarHora(context),
+            child: Row(
+              children: [
+                _buildTimeBox(horarioLembrete.hour.toString().padLeft(2, '0')),
+                const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 10),
+                  child: Text(
+                    ':',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
+                  ),
                 ),
-              ),
-              _buildTimeBox('30'),
-            ],
+                _buildTimeBox(
+                  horarioLembrete.minute.toString().padLeft(2, '0'),
+                ),
+              ],
+            ),
           ),
           const SizedBox(height: 18),
           Row(
@@ -275,7 +498,11 @@ class CriarHobby extends StatelessWidget {
                   color: corTextoLabels,
                 ),
               ),
-              Switch(value: true, onChanged: (v) {}, activeColor: corRoxoApp),
+              Switch(
+                value: mostrarNotificacao,
+                onChanged: (v) => setState(() => mostrarNotificacao = v),
+                activeColor: corRoxoApp,
+              ),
             ],
           ),
           const SizedBox(height: 16),
@@ -294,48 +521,64 @@ class CriarHobby extends StatelessWidget {
         border: Border.all(color: corBordaCampos, width: 1),
       ),
       padding: const EdgeInsets.symmetric(horizontal: 12),
-      child: Row(
-        children: [
-          const Text(
-            '20',
-            style: TextStyle(fontSize: 14, color: Colors.black87),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<String>(
+          value: metaSelecionada,
+          isExpanded: true,
+          icon: Icon(
+            Icons.keyboard_arrow_down_rounded,
+            color: Colors.grey[600],
           ),
-          const SizedBox(width: 8),
-          const VerticalDivider(width: 1, thickness: 1, color: corBordaCampos),
-          const SizedBox(width: 8),
-          const Expanded(
-            child: Text(
-              'selecione uma opção',
-              style: TextStyle(fontSize: 14, color: corTextoSub),
-            ),
-          ),
-          Icon(Icons.keyboard_arrow_down_rounded, color: Colors.grey[600]),
-        ],
+          items: const [
+            DropdownMenuItem(value: 'Minutos', child: Text('20 Minutos')),
+            DropdownMenuItem(value: 'Horas', child: Text('1 Hora')),
+            DropdownMenuItem(value: 'Paginas', child: Text('10 Páginas')),
+          ],
+          onChanged: (String? novoValor) {
+            if (novoValor != null) {
+              setState(() {
+                metaSelecionada = novoValor;
+                metaQuantidade = novoValor == 'Minutos'
+                    ? '20'
+                    : (novoValor == 'Horas' ? '1' : '10');
+              });
+            }
+          },
+        ),
       ),
     );
   }
 
   Widget _buildDaysOfWeek() {
-    final dias = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sab'];
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: dias.map((dia) {
-        return Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-          decoration: BoxDecoration(
-            color: corLaranjaApp,
-            borderRadius: BorderRadius.circular(6),
-          ),
-          child: Text(
-            dia,
-            style: const TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.bold,
-              fontSize: 12,
+      children: List.generate(nomesDias.length, (index) {
+        final booleanSelecionado = diasSelecionados[index];
+        return GestureDetector(
+          onTap: () {
+            setState(() {
+              diasSelecionados[index] = !diasSelecionados[index];
+            });
+          },
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            decoration: BoxDecoration(
+              color: booleanSelecionado
+                  ? corLaranjaApp
+                  : const Color(0xFFE0E0E0),
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: Text(
+              nomesDias[index],
+              style: TextStyle(
+                color: booleanSelecionado ? Colors.white : Colors.black54,
+                fontWeight: FontWeight.bold,
+                fontSize: 12,
+              ),
             ),
           ),
         );
-      }).toList(),
+      }),
     );
   }
 
