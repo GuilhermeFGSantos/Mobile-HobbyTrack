@@ -1,3 +1,5 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'auth_widgets.dart';
 import 'meta_model.dart';
@@ -29,42 +31,25 @@ class TelaMetas extends StatefulWidget {
 class _TelaMetasState extends State<TelaMetas> {
   FiltroMeta filtro = FiltroMeta.todas;
 
-  final List<Meta> metas = [
-    Meta(
-      titulo: 'Ler 12 livros este ano',
-      hobby: hobbiesMock.firstWhere((h) => h.id == 'leitura'),
-      tipo: TipoMeta.quantitativa,
-      frequencia:
-          Frequencia.porPeriodo(vezes: 1, unidade: UnidadePeriodo.mes),
-      valorAlvo: 12,
-      progresso: 7,
-    ),
-    Meta(
-      titulo: 'Aprender Stairway to Heaven',
-      hobby: hobbiesMock.firstWhere((h) => h.id == 'violao'),
-      tipo: TipoMeta.qualitativa,
-      frequencia:
-          Frequencia.porPeriodo(vezes: 3, unidade: UnidadePeriodo.semana),
-      checks: const [
-        EstadoCheck.concluido,
-        EstadoCheck.concluido,
-        EstadoCheck.vazio,
-      ],
-    ),
-    Meta(
-      titulo: 'Alcançar Diamond no Valorant',
-      hobby: hobbiesMock.firstWhere((h) => h.id == 'jogos'),
-      tipo: TipoMeta.qualitativa,
-      frequencia: Frequencia.diasSemana({2, 4, 6}),
-      checks: const [
-        EstadoCheck.concluido,
-        EstadoCheck.falhado,
-        EstadoCheck.vazio,
-      ],
-    ),
-  ];
+  final _auth = FirebaseAuth.instance;
+  final _db = FirebaseFirestore.instance;
 
-  List<Meta> get metasFiltradas {
+  // E-mail do usuário logado: é o campo que separa as metas de cada um,
+  // igual a Home faz com os hobbies.
+  String get _email => _auth.currentUser?.email ?? '';
+
+  // "Atalho" para a coleção de metas no Firestore.
+  CollectionReference<Map<String, dynamic>> get _metasRef =>
+      _db.collection('metas');
+
+  // Leitura em tempo real: só as metas do usuário logado. O StreamBuilder no
+  // build assina essa stream e redesenha a tela sozinho a cada mudança no banco.
+  Stream<QuerySnapshot<Map<String, dynamic>>> get _streamMetas =>
+      _metasRef.where('criado_por', isEqualTo: _email).snapshots();
+
+  // ----- Cálculos derivados da lista que chega da stream -----
+
+  List<Meta> _aplicarFiltro(List<Meta> metas) {
     switch (filtro) {
       case FiltroMeta.todas:
         return metas;
@@ -75,8 +60,15 @@ class _TelaMetasState extends State<TelaMetas> {
     }
   }
 
-  int get metasAtivas =>
+  int _contarAtivas(List<Meta> metas) =>
       metas.where((m) => m.status != StatusMeta.pausada).length;
+
+  Meta? _maisFrequente(List<Meta> metas) {
+    if (metas.isEmpty) return null;
+    return metas.reduce(
+      (a, b) => a.pontuacaoProgresso >= b.pontuacaoProgresso ? a : b,
+    );
+  }
 
   Future<void> abrirNovaMeta({Meta? metaParaEditar}) async {
     final resultado = await Navigator.push<Meta>(
@@ -88,23 +80,29 @@ class _TelaMetasState extends State<TelaMetas> {
 
     if (resultado == null) return;
 
-    setState(() {
-      if (metaParaEditar != null) {
-        final i = metas.indexOf(metaParaEditar);
-        if (i != -1) metas[i] = resultado;
-      } else {
-        metas.add(resultado);
-      }
-    });
+    // Edição: atualiza o documento existente (pelo id). Criação: novo
+    // documento, com a data de criação. A stream reflete a mudança sozinha,
+    // então nem precisamos de setState aqui.
+    if (metaParaEditar?.id != null) {
+      await _metasRef.doc(metaParaEditar!.id).update(resultado.toMap(_email));
+    } else {
+      await _metasRef.add({
+        ...resultado.toMap(_email),
+        'criado_em': Timestamp.now(),
+      });
+    }
   }
 
-  void pausarMeta(Meta meta) {
-    setState(() {
-      meta.status = meta.status == StatusMeta.pausada
-          ? StatusMeta.emAndamento
-          : StatusMeta.pausada;
+  Future<void> pausarMeta(Meta meta) async {
+    final novoStatus = meta.status == StatusMeta.pausada
+        ? StatusMeta.emAndamento
+        : StatusMeta.pausada;
+    await _metasRef.doc(meta.id).update({
+      'status': novoStatus.name,
+      'ultima_atualizacao': Timestamp.now(),
     });
-    final txt = meta.status == StatusMeta.pausada
+    if (!mounted) return;
+    final txt = novoStatus == StatusMeta.pausada
         ? 'Meta "${meta.titulo}" pausada.'
         : 'Meta "${meta.titulo}" retomada.';
     ScaffoldMessenger.of(context).showSnackBar(
@@ -119,17 +117,16 @@ class _TelaMetasState extends State<TelaMetas> {
       builder: (_) => _DialogExcluir(nomeMeta: meta.titulo),
     );
 
-    if (confirmado == true) {
-      setState(() => metas.remove(meta));
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Meta "${meta.titulo}" excluída.'),
-            duration: const Duration(seconds: 1),
-          ),
-        );
-      }
-    }
+    if (confirmado != true) return;
+
+    await _metasRef.doc(meta.id).delete();
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Meta "${meta.titulo}" excluída.'),
+        duration: const Duration(seconds: 1),
+      ),
+    );
   }
 
   void avisoSemAcao(String nome) {
@@ -141,55 +138,51 @@ class _TelaMetasState extends State<TelaMetas> {
     );
   }
 
-  void ajustarProgresso(Meta meta, int delta) {
+  Future<void> ajustarProgresso(Meta meta, int delta) async {
     if (meta.tipo != TipoMeta.quantitativa) return;
-    setState(() {
-      final novo = (meta.progresso + delta).clamp(0, meta.valorAlvo);
-      meta.progresso = novo;
-
-      // Quantitativa conclui automaticamente ao bater o alvo.
-      meta.status = novo >= meta.valorAlvo && meta.valorAlvo > 0
-          ? StatusMeta.concluida
-          : StatusMeta.emAndamento;
+    final novo = (meta.progresso + delta).clamp(0, meta.valorAlvo);
+    // Quantitativa conclui automaticamente ao bater o alvo.
+    final novoStatus = novo >= meta.valorAlvo && meta.valorAlvo > 0
+        ? StatusMeta.concluida
+        : StatusMeta.emAndamento;
+    await _metasRef.doc(meta.id).update({
+      'progresso': novo,
+      'status': novoStatus.name,
+      'ultima_atualizacao': Timestamp.now(),
     });
   }
 
   // Cicla o estado do check no índice i: vazio → concluído → falhado → vazio.
-  void alternarCheck(Meta meta, int i) {
+  Future<void> alternarCheck(Meta meta, int i) async {
     if (i < 0 || i >= meta.checks.length) return;
-    setState(() {
-      final atual = meta.checks[i];
-      final proximo = switch (atual) {
-        EstadoCheck.vazio => EstadoCheck.concluido,
-        EstadoCheck.concluido => EstadoCheck.falhado,
-        EstadoCheck.falhado => EstadoCheck.vazio,
-      };
-      meta.checks[i] = proximo;
+    // Trabalha numa cópia e grava a lista inteira de volta no documento.
+    final novosChecks = List<EstadoCheck>.from(meta.checks);
+    novosChecks[i] = switch (novosChecks[i]) {
+      EstadoCheck.vazio => EstadoCheck.concluido,
+      EstadoCheck.concluido => EstadoCheck.falhado,
+      EstadoCheck.falhado => EstadoCheck.vazio,
+    };
 
-      // Conclui automaticamente se todos os checks estão como concluído.
-      final todosOk = meta.checks.isNotEmpty &&
-          meta.checks.every((c) => c == EstadoCheck.concluido);
-      meta.status =
-          todosOk ? StatusMeta.concluida : StatusMeta.emAndamento;
+    // Conclui automaticamente se todos os checks estão como concluído.
+    final todosOk =
+        novosChecks.isNotEmpty &&
+        novosChecks.every((c) => c == EstadoCheck.concluido);
+    final novoStatus = todosOk ? StatusMeta.concluida : StatusMeta.emAndamento;
+
+    await _metasRef.doc(meta.id).update({
+      'checks': novosChecks.map((c) => c.name).toList(),
+      'status': novoStatus.name,
+      'ultima_atualizacao': Timestamp.now(),
     });
   }
 
-  void adicionarMilestone(Meta meta) {
-    setState(() => meta.milestones.add(Milestone.novo()));
-  }
-
-  void removerMilestone(Meta meta, String id) {
-    setState(() => meta.milestones.removeWhere((m) => m.id == id));
-  }
-
-  void editarMilestone(Meta meta, String id, String novoTexto) {
-    final m = meta.milestones.firstWhere((m) => m.id == id);
-    m.texto = novoTexto;
-  }
-
   // Conclusão manual — usada por metas qualitativas via menu ⋮.
-  void concluirMeta(Meta meta) {
-    setState(() => meta.status = StatusMeta.concluida);
+  Future<void> concluirMeta(Meta meta) async {
+    await _metasRef.doc(meta.id).update({
+      'status': StatusMeta.concluida.name,
+      'ultima_atualizacao': Timestamp.now(),
+    });
+    if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text('Meta "${meta.titulo}" marcada como concluída.'),
@@ -198,172 +191,201 @@ class _TelaMetasState extends State<TelaMetas> {
     );
   }
 
-  Meta? get metaMaisFrequente {
-    if (metas.isEmpty) return null;
-    return metas.reduce(
-      (a, b) => a.pontuacaoProgresso >= b.pontuacaoProgresso ? a : b,
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
-    final lista = metasFiltradas;
-
     return MobileFrame(
-      child: Scaffold(
-      backgroundColor: _bgOffWhite,
-      body: Stack(
-        children: [
-          const Positioned(
-            top: 0,
-            left: 0,
-            right: 0,
-            child: _MetasHeader(),
-          ),
+      // StreamBuilder: assina a coleção `metas` no Firestore e reconstrói a
+      // tela sempre que algo muda no banco (criar/editar/excluir/pausar...).
+      child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+        stream: _streamMetas,
+        builder: (context, snap) {
+          // Cada documento vira uma Meta via Meta.fromDoc.
+          final metas = (snap.data?.docs ?? []).map(Meta.fromDoc).toList();
+          final carregando = snap.connectionState == ConnectionState.waiting;
+          final lista = _aplicarFiltro(metas);
 
-          SafeArea(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.only(bottom: 110),
-              child: Center(
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 430),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const SizedBox(height: 12),
+          return Scaffold(
+            backgroundColor: _bgOffWhite,
+            body: Stack(
+              children: [
+                const Positioned(
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  child: _MetasHeader(),
+                ),
 
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 24),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.end,
+                SafeArea(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.only(bottom: 110),
+                    child: Center(
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 430),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            _IconeCirculo(
-                              icone: Icons.notifications_outlined,
-                              onTap: () => Navigator.push(
-                                context,
-                                MaterialPageRoute(builder: (_) => TelaNotificacoes()),
+                            const SizedBox(height: 12),
+
+                            Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 24,
+                              ),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.end,
+                                children: [
+                                  _IconeCirculo(
+                                    icone: Icons.notifications_outlined,
+                                    onTap: () => Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (_) => TelaNotificacoes(),
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 10),
+                                  _IconeCirculo(
+                                    icone: Icons.person_outline,
+                                    onTap: () => Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (_) => const TelaPerfil(),
+                                      ),
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
-                            const SizedBox(width: 10),
-                            _IconeCirculo(
-                              icone: Icons.person_outline,
-                              onTap: () => Navigator.push(
-                                context,
-                                MaterialPageRoute(builder: (_) => const TelaPerfil()),
+
+                            const SizedBox(height: 64),
+
+                            const Padding(
+                              padding: EdgeInsets.symmetric(horizontal: 24),
+                              child: Text(
+                                'Metas',
+                                style: TextStyle(
+                                  fontSize: 24,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.black,
+                                ),
                               ),
                             ),
+                            const SizedBox(height: 4),
+                            const Padding(
+                              padding: EdgeInsets.symmetric(horizontal: 24),
+                              child: Text(
+                                'Acompanhe sua evolução e mantenha a constância',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  color: _grayText,
+                                ),
+                              ),
+                            ),
+
+                            const SizedBox(height: 14),
+
+                            Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 24,
+                              ),
+                              child: _PainelEstatisticas(
+                                ativas: _contarAtivas(metas),
+                                maisFrequente: _maisFrequente(metas),
+                              ),
+                            ),
+
+                            const SizedBox(height: 16),
+
+                            Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 24,
+                              ),
+                              child: _AbasFiltro(
+                                filtroSelecionado: filtro,
+                                onSelecionar: (f) => setState(() => filtro = f),
+                              ),
+                            ),
+
+                            const SizedBox(height: 14),
+
+                            if (carregando)
+                              const Padding(
+                                padding: EdgeInsets.symmetric(vertical: 40),
+                                child: Center(
+                                  child: CircularProgressIndicator(),
+                                ),
+                              )
+                            else if (lista.isEmpty)
+                              const Padding(
+                                padding: EdgeInsets.symmetric(
+                                  horizontal: 24,
+                                  vertical: 30,
+                                ),
+                                child: Center(
+                                  child: Text(
+                                    'Nenhuma meta nessa visualização.',
+                                    style: TextStyle(
+                                      color: _grayText,
+                                      fontSize: 13,
+                                    ),
+                                  ),
+                                ),
+                              )
+                            else
+                              Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 24,
+                                ),
+                                child: Column(
+                                  children: [
+                                    for (final m in lista) ...[
+                                      _CardMeta(
+                                        meta: m,
+                                        desabilitado:
+                                            m.status == StatusMeta.pausada,
+                                        onEditar: () =>
+                                            abrirNovaMeta(metaParaEditar: m),
+                                        onExcluir: () => confirmarExclusao(m),
+                                        onPausar: () => pausarMeta(m),
+                                        onCheckTap: (i) => alternarCheck(m, i),
+                                      ),
+                                      const SizedBox(height: 12),
+                                    ],
+                                  ],
+                                ),
+                              ),
+
+                            const SizedBox(height: 6),
                           ],
                         ),
                       ),
-
-                      const SizedBox(height: 64),
-
-                      const Padding(
-                        padding: EdgeInsets.symmetric(horizontal: 24),
-                        child: Text(
-                          'Metas',
-                          style: TextStyle(
-                            fontSize: 24,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.black,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      const Padding(
-                        padding: EdgeInsets.symmetric(horizontal: 24),
-                        child: Text(
-                          'Acompanhe sua evolução e mantenha a constância',
-                          style: TextStyle(fontSize: 13, color: _grayText),
-                        ),
-                      ),
-
-                      const SizedBox(height: 14),
-
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 24),
-                        child: _PainelEstatisticas(
-                          ativas: metasAtivas,
-                          maisFrequente: metaMaisFrequente,
-                        ),
-                      ),
-
-                      const SizedBox(height: 16),
-
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 24),
-                        child: _AbasFiltro(
-                          filtroSelecionado: filtro,
-                          onSelecionar: (f) => setState(() => filtro = f),
-                        ),
-                      ),
-
-                      const SizedBox(height: 14),
-
-                      if (lista.isEmpty)
-                        const Padding(
-                          padding: EdgeInsets.symmetric(
-                            horizontal: 24,
-                            vertical: 30,
-                          ),
-                          child: Center(
-                            child: Text(
-                              'Nenhuma meta nessa visualização.',
-                              style: TextStyle(color: _grayText, fontSize: 13),
-                            ),
-                          ),
-                        )
-                      else
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 24),
-                          child: Column(
-                            children: [
-                              for (final m in lista) ...[
-                                _CardMeta(
-                                  meta: m,
-                                  desabilitado: m.status == StatusMeta.pausada,
-                                  onEditar: () =>
-                                      abrirNovaMeta(metaParaEditar: m),
-                                  onExcluir: () => confirmarExclusao(m),
-                                  onPausar: () => pausarMeta(m),
-                                  onCheckTap: (i) => alternarCheck(m, i),
-                                ),
-                                const SizedBox(height: 12),
-                              ],
-                            ],
-                          ),
-                        ),
-
-                      const SizedBox(height: 6),
-                    ],
+                    ),
                   ),
                 ),
-              ),
+
+                // Botão flutuante no canto inferior direito (acima da bottom bar),
+                // posicionado absoluto para não descer junto da lista.
+                Positioned(
+                  right: 18,
+                  bottom: 16,
+                  child: _BotaoNovaMeta(onTap: () => abrirNovaMeta()),
+                ),
+              ],
             ),
-          ),
 
-          // Botão flutuante no canto inferior direito (acima da bottom bar),
-          // posicionado absoluto para não descer junto da lista.
-          Positioned(
-            right: 18,
-            bottom: 16,
-            child: _BotaoNovaMeta(onTap: () => abrirNovaMeta()),
-          ),
-        ],
-      ),
-
-      bottomNavigationBar: _MetasBottomBar(
-        onHomeTap: () => Navigator.pop(context),
-        onCategoriasTap: () => Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => const TelaCategorias()),
-        ),
-        onInsightsTap: () => Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => const TelaInsights()),
-        ),
-        onAddTap: () => abrirNovaMeta(),
-      ),
+            bottomNavigationBar: _MetasBottomBar(
+              onHomeTap: () => Navigator.pop(context),
+              onCategoriasTap: () => Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(builder: (_) => const TelaCategorias()),
+              ),
+              onInsightsTap: () => Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(builder: (_) => const TelaInsights()),
+              ),
+              onAddTap: () => abrirNovaMeta(),
+            ),
+          );
+        },
       ),
     );
   }
@@ -452,9 +474,7 @@ class _PainelEstatisticas extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final destaque = maisFrequente == null
-        ? '—'
-        : '${maisFrequente!.emoji} ${maisFrequente!.hobby.nome}';
+    final mf = maisFrequente;
 
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 12),
@@ -472,16 +492,15 @@ class _PainelEstatisticas extends StatelessWidget {
       child: Row(
         children: [
           Expanded(
-            child: _ItemEstatistica(
-              titulo: 'Metas ativas',
-              valor: '$ativas',
-            ),
+            child: _ItemEstatistica(titulo: 'Metas ativas', valor: '$ativas'),
           ),
           Container(width: 1, height: 38, color: const Color(0xFFE6E6E6)),
           Expanded(
             child: _ItemEstatistica(
               titulo: 'Mais frequente do mês',
-              valor: destaque,
+              valor: mf == null ? '—' : mf.hobby.nome,
+              icone: mf?.icone,
+              corIcone: mf?.cor,
             ),
           ),
         ],
@@ -493,25 +512,42 @@ class _PainelEstatisticas extends StatelessWidget {
 class _ItemEstatistica extends StatelessWidget {
   final String titulo;
   final String valor;
+  final IconData? icone;
+  final Color? corIcone;
 
-  const _ItemEstatistica({required this.titulo, required this.valor});
+  const _ItemEstatistica({
+    required this.titulo,
+    required this.valor,
+    this.icone,
+    this.corIcone,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Column(
       children: [
-        Text(
-          titulo,
-          style: const TextStyle(fontSize: 12, color: _grayText),
-        ),
+        Text(titulo, style: const TextStyle(fontSize: 12, color: _grayText)),
         const SizedBox(height: 2),
-        Text(
-          valor,
-          style: const TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.w700,
-            color: _orange,
-          ),
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            if (icone != null) ...[
+              Icon(icone, size: 18, color: corIcone ?? _orange),
+              const SizedBox(width: 4),
+            ],
+            Flexible(
+              child: Text(
+                valor,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w700,
+                  color: _orange,
+                ),
+              ),
+            ),
+          ],
         ),
       ],
     );
@@ -635,7 +671,7 @@ class _CardMeta extends StatelessWidget {
                 color: Colors.white.withOpacity(0.7),
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: Text(meta.emoji, style: const TextStyle(fontSize: 22)),
+              child: Icon(meta.icone, color: meta.cor, size: 22),
             ),
             const SizedBox(width: 12),
 
@@ -759,9 +795,7 @@ class _CaixaCheck extends StatelessWidget {
         borderRadius: BorderRadius.circular(4),
         border: Border.all(color: cor ?? Colors.white, width: 1),
       ),
-      child: icone == null
-          ? null
-          : Icon(icone, color: Colors.white, size: 16),
+      child: icone == null ? null : Icon(icone, color: Colors.white, size: 16),
     );
   }
 }

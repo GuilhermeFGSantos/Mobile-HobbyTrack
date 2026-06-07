@@ -1,3 +1,5 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'auth_widgets.dart';
 import 'meta_model.dart';
@@ -23,6 +25,12 @@ class _TelaNovaMetaState extends State<TelaNovaMeta> {
   late TextEditingController tituloCtrl;
   late TextEditingController valorCtrl;
 
+  final _db = FirebaseFirestore.instance;
+
+  // Hobbies do usuário, lidos do Firestore (leitura única) pra montar o seletor.
+  List<Hobby> _hobbies = [];
+  bool _carregandoHobbies = true;
+
   Hobby? hobbySelecionado;
   TipoMeta tipo = TipoMeta.quantitativa;
   Frequencia frequencia = Frequencia.porPeriodo(
@@ -42,8 +50,40 @@ class _TelaNovaMetaState extends State<TelaNovaMeta> {
     );
     hobbySelecionado = m?.hobby;
     tipo = m?.tipo ?? TipoMeta.quantitativa;
-    frequencia = m?.frequencia ??
+    frequencia =
+        m?.frequencia ??
         Frequencia.porPeriodo(vezes: 1, unidade: UnidadePeriodo.semana);
+
+    _carregarHobbies();
+  }
+
+  // Lê uma vez (.get) os hobbies do usuário logado pra popular o seletor.
+  // Diferente da TelaMetas, aqui não precisa ser tempo real: a lista de
+  // hobbies não muda enquanto a pessoa preenche o formulário.
+  Future<void> _carregarHobbies() async {
+    final email = FirebaseAuth.instance.currentUser?.email ?? '';
+    final snap = await _db
+        .collection('hobbies')
+        .where('criado_por', isEqualTo: email)
+        .get();
+    if (!mounted) return;
+    final hobbies = snap.docs.map(Hobby.fromDoc).toList();
+
+    // Editando: reaponta o hobby selecionado para a instância vinda do banco
+    // (ou nulo, caso esse hobby tenha sido excluído).
+    Hobby? selecionado;
+    for (final h in hobbies) {
+      if (h.id == hobbySelecionado?.id) {
+        selecionado = h;
+        break;
+      }
+    }
+
+    setState(() {
+      _hobbies = hobbies;
+      hobbySelecionado = selecionado;
+      _carregandoHobbies = false;
+    });
   }
 
   @override
@@ -102,171 +142,173 @@ class _TelaNovaMetaState extends State<TelaNovaMeta> {
   Widget build(BuildContext context) {
     return MobileFrame(
       child: Scaffold(
-      backgroundColor: _bgOffWhite,
-      body: Stack(
-        children: [
-          const Positioned(
-            top: 0,
-            left: 0,
-            right: 0,
-            child: _HeaderNovaMeta(),
-          ),
+        backgroundColor: _bgOffWhite,
+        body: Stack(
+          children: [
+            const Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              child: _HeaderNovaMeta(),
+            ),
 
-          SafeArea(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.only(bottom: 30),
-              child: Center(
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 430),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 24),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const SizedBox(height: 12),
-                        Row(
-                          children: [
-                            InkWell(
-                              onTap: () => Navigator.pop(context),
-                              borderRadius: BorderRadius.circular(50),
-                              child: const Padding(
-                                padding: EdgeInsets.all(6),
-                                child: Icon(
-                                  Icons.arrow_back,
-                                  color: Colors.white,
-                                  size: 22,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 64),
-
-                        Text(
-                          editando ? 'Editar Meta' : 'Nova Meta',
-                          style: const TextStyle(
-                            fontSize: 24,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.black,
-                          ),
-                        ),
-
-                        const SizedBox(height: 18),
-
-                        const _Rotulo('Hobby'),
-                        const SizedBox(height: 6),
-                        _SeletorHobby(
-                          valor: hobbySelecionado,
-                          onChanged: (h) =>
-                              setState(() => hobbySelecionado = h),
-                        ),
-
-                        const SizedBox(height: 16),
-
-                        const _Rotulo('Título da meta'),
-                        const SizedBox(height: 6),
-                        _CampoTexto(
-                          controller: tituloCtrl,
-                          hint: 'Ex: Aprender a tocar Stairway to Heaven',
-                        ),
-
-                        const SizedBox(height: 16),
-
-                        const _Rotulo('Tipo de meta'),
-                        const SizedBox(height: 6),
-                        _RadioTipo(
-                          label: 'Quantitativa',
-                          descricao: 'Metas que têm um valor numérico',
-                          valor: TipoMeta.quantitativa,
-                          grupo: tipo,
-                          onTap: () =>
-                              setState(() => tipo = TipoMeta.quantitativa),
-                        ),
-                        const SizedBox(height: 8),
-                        _RadioTipo(
-                          label: 'Qualitativo',
-                          descricao: 'Metas baseadas em frequência e hábitos',
-                          valor: TipoMeta.qualitativa,
-                          grupo: tipo,
-                          onTap: () =>
-                              setState(() => tipo = TipoMeta.qualitativa),
-                        ),
-
-                        if (tipo == TipoMeta.quantitativa) ...[
-                          const SizedBox(height: 16),
-                          const _Rotulo('Meta'),
-                          const SizedBox(height: 6),
+            SafeArea(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.only(bottom: 30),
+                child: Center(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 430),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 24),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const SizedBox(height: 12),
                           Row(
                             children: [
-                              const Padding(
-                                padding: EdgeInsets.only(right: 8),
-                                child: Text(
-                                  'Valor:',
-                                  style: TextStyle(
-                                    fontSize: 13,
-                                    color: _grayText,
+                              InkWell(
+                                onTap: () => Navigator.pop(context),
+                                borderRadius: BorderRadius.circular(50),
+                                child: const Padding(
+                                  padding: EdgeInsets.all(6),
+                                  child: Icon(
+                                    Icons.arrow_back,
+                                    color: Colors.white,
+                                    size: 22,
                                   ),
-                                ),
-                              ),
-                              Expanded(
-                                child: _CampoTexto(
-                                  controller: valorCtrl,
-                                  hint: 'Digite o valor',
-                                  numerico: true,
                                 ),
                               ),
                             ],
                           ),
-                        ],
+                          const SizedBox(height: 64),
 
-                        const SizedBox(height: 16),
+                          Text(
+                            editando ? 'Editar Meta' : 'Nova Meta',
+                            style: const TextStyle(
+                              fontSize: 24,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.black,
+                            ),
+                          ),
 
-                        const _Rotulo('Frequência'),
-                        const SizedBox(height: 6),
-                        _SeletorFrequencia(
-                          valor: frequencia,
-                          onChanged: (f) => setState(() => frequencia = f),
-                        ),
+                          const SizedBox(height: 18),
 
-                        const SizedBox(height: 28),
+                          const _Rotulo('Hobby'),
+                          const SizedBox(height: 6),
+                          _SeletorHobby(
+                            valor: hobbySelecionado,
+                            hobbies: _hobbies,
+                            carregando: _carregandoHobbies,
+                            onChanged: (h) =>
+                                setState(() => hobbySelecionado = h),
+                          ),
 
-                        Center(
-                          child: GestureDetector(
-                            onTap: salvar,
-                            child: Container(
-                              width: 240,
-                              height: 46,
-                              alignment: Alignment.center,
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(25),
-                                gradient: const LinearGradient(
-                                  colors: [_orange, _purple],
-                                  begin: Alignment.centerLeft,
-                                  end: Alignment.centerRight,
+                          const SizedBox(height: 16),
+
+                          const _Rotulo('Título da meta'),
+                          const SizedBox(height: 6),
+                          _CampoTexto(
+                            controller: tituloCtrl,
+                            hint: 'Ex: Aprender a tocar Stairway to Heaven',
+                          ),
+
+                          const SizedBox(height: 16),
+
+                          const _Rotulo('Tipo de meta'),
+                          const SizedBox(height: 6),
+                          _RadioTipo(
+                            label: 'Quantitativa',
+                            descricao: 'Metas que têm um valor numérico',
+                            valor: TipoMeta.quantitativa,
+                            grupo: tipo,
+                            onTap: () =>
+                                setState(() => tipo = TipoMeta.quantitativa),
+                          ),
+                          const SizedBox(height: 8),
+                          _RadioTipo(
+                            label: 'Qualitativo',
+                            descricao: 'Metas baseadas em frequência e hábitos',
+                            valor: TipoMeta.qualitativa,
+                            grupo: tipo,
+                            onTap: () =>
+                                setState(() => tipo = TipoMeta.qualitativa),
+                          ),
+
+                          if (tipo == TipoMeta.quantitativa) ...[
+                            const SizedBox(height: 16),
+                            const _Rotulo('Meta'),
+                            const SizedBox(height: 6),
+                            Row(
+                              children: [
+                                const Padding(
+                                  padding: EdgeInsets.only(right: 8),
+                                  child: Text(
+                                    'Valor:',
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      color: _grayText,
+                                    ),
+                                  ),
                                 ),
-                              ),
-                              child: const Text(
-                                'Salvar',
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w700,
+                                Expanded(
+                                  child: _CampoTexto(
+                                    controller: valorCtrl,
+                                    hint: 'Digite o valor',
+                                    numerico: true,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+
+                          const SizedBox(height: 16),
+
+                          const _Rotulo('Frequência'),
+                          const SizedBox(height: 6),
+                          _SeletorFrequencia(
+                            valor: frequencia,
+                            onChanged: (f) => setState(() => frequencia = f),
+                          ),
+
+                          const SizedBox(height: 28),
+
+                          Center(
+                            child: GestureDetector(
+                              onTap: salvar,
+                              child: Container(
+                                width: 240,
+                                height: 46,
+                                alignment: Alignment.center,
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(25),
+                                  gradient: const LinearGradient(
+                                    colors: [_orange, _purple],
+                                    begin: Alignment.centerLeft,
+                                    end: Alignment.centerRight,
+                                  ),
+                                ),
+                                child: const Text(
+                                  'Salvar',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w700,
+                                  ),
                                 ),
                               ),
                             ),
                           ),
-                        ),
 
-                        const SizedBox(height: 20),
-                      ],
+                          const SizedBox(height: 20),
+                        ],
+                      ),
                     ),
                   ),
                 ),
               ),
             ),
-          ),
-        ],
-      ),
+          ],
+        ),
       ),
     );
   }
@@ -359,8 +401,10 @@ class _CampoTexto extends StatelessWidget {
         isDense: true,
         filled: true,
         fillColor: Colors.white,
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 12,
+          vertical: 10,
+        ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
           borderSide: const BorderSide(color: _bordaInput),
@@ -503,10 +547,7 @@ class _SeletorFrequencia extends StatelessWidget {
             onTrocarUnidade: _trocarUnidade,
           )
         else
-          _ModoDiasSemana(
-            diasSelecionados: valor.dias,
-            onTap: _alternarDia,
-          ),
+          _ModoDiasSemana(diasSelecionados: valor.dias, onTap: _alternarDia),
 
         const SizedBox(height: 6),
         Text(
@@ -636,10 +677,7 @@ class _ModoPorPeriodo extends StatelessWidget {
         ),
         _BotaoStep(icone: Icons.add, onTap: onIncrementar),
         const SizedBox(width: 10),
-        const Text(
-          'por',
-          style: TextStyle(fontSize: 13, color: _grayText),
-        ),
+        const Text('por', style: TextStyle(fontSize: 13, color: _grayText)),
         const SizedBox(width: 8),
         Expanded(
           child: Container(
@@ -711,10 +749,7 @@ class _ModoDiasSemana extends StatelessWidget {
   final Set<int> diasSelecionados;
   final ValueChanged<int> onTap;
 
-  const _ModoDiasSemana({
-    required this.diasSelecionados,
-    required this.onTap,
-  });
+  const _ModoDiasSemana({required this.diasSelecionados, required this.onTap});
 
   static const _siglas = ['D', 'S', 'T', 'Q', 'Q', 'S', 'S'];
 
@@ -776,9 +811,16 @@ class _ChipDia extends StatelessWidget {
 
 class _SeletorHobby extends StatelessWidget {
   final Hobby? valor;
+  final List<Hobby> hobbies;
+  final bool carregando;
   final ValueChanged<Hobby> onChanged;
 
-  const _SeletorHobby({required this.valor, required this.onChanged});
+  const _SeletorHobby({
+    required this.valor,
+    required this.hobbies,
+    required this.carregando,
+    required this.onChanged,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -789,45 +831,81 @@ class _SeletorHobby extends StatelessWidget {
         borderRadius: BorderRadius.circular(8),
         border: Border.all(color: _bordaInput),
       ),
-      child: DropdownButtonHideUnderline(
-        child: DropdownButton<Hobby>(
-          value: valor,
-          isExpanded: true,
-          hint: const Text(
-            'selecione um hobby',
-            style: TextStyle(fontSize: 13, color: _grayLight),
-          ),
-          icon: const Icon(Icons.keyboard_arrow_down, color: _grayText),
-          style: const TextStyle(fontSize: 13, color: Colors.black),
-          onChanged: (h) {
-            if (h != null) onChanged(h);
-          },
-          items: [
-            for (final h in hobbiesMock)
-              DropdownMenuItem(
-                value: h,
-                child: Row(
-                  children: [
-                    Container(
-                      width: 26,
-                      height: 26,
-                      alignment: Alignment.center,
-                      decoration: BoxDecoration(
-                        color: h.cor.withOpacity(0.22),
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Text(
-                        h.emoji,
-                        style: const TextStyle(fontSize: 15),
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Text(h.nome),
-                  ],
-                ),
-              ),
+      child: _conteudo(),
+    );
+  }
+
+  Widget _conteudo() {
+    // Enquanto a leitura do Firestore não volta.
+    if (carregando) {
+      return const SizedBox(
+        height: 48,
+        child: Row(
+          children: [
+            SizedBox(
+              width: 16,
+              height: 16,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+            SizedBox(width: 10),
+            Text(
+              'Carregando hobbies...',
+              style: TextStyle(fontSize: 13, color: _grayLight),
+            ),
           ],
         ),
+      );
+    }
+
+    // Usuário ainda não tem hobbies cadastrados no banco.
+    if (hobbies.isEmpty) {
+      return const SizedBox(
+        height: 48,
+        child: Align(
+          alignment: Alignment.centerLeft,
+          child: Text(
+            'Você ainda não tem hobbies. Crie um primeiro.',
+            style: TextStyle(fontSize: 13, color: _grayLight),
+          ),
+        ),
+      );
+    }
+
+    return DropdownButtonHideUnderline(
+      child: DropdownButton<Hobby>(
+        value: valor,
+        isExpanded: true,
+        hint: const Text(
+          'selecione um hobby',
+          style: TextStyle(fontSize: 13, color: _grayLight),
+        ),
+        icon: const Icon(Icons.keyboard_arrow_down, color: _grayText),
+        style: const TextStyle(fontSize: 13, color: Colors.black),
+        onChanged: (h) {
+          if (h != null) onChanged(h);
+        },
+        items: [
+          for (final h in hobbies)
+            DropdownMenuItem(
+              value: h,
+              child: Row(
+                children: [
+                  Container(
+                    width: 26,
+                    height: 26,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: h.cor.withOpacity(0.22),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Icon(h.icone, color: h.cor, size: 16),
+                  ),
+                  const SizedBox(width: 10),
+                  Text(h.nome),
+                ],
+              ),
+            ),
+        ],
       ),
     );
   }
