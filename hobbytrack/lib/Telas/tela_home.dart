@@ -995,8 +995,11 @@ class _CardHobby extends StatelessWidget {
                 style: TextStyle(color: Colors.red),
               ),
               onTap: () {
+                FirebaseFirestore.instance
+                    .collection('hobbies')
+                    .doc(id)
+                    .delete();
                 Navigator.pop(context);
-                onExcluir();
               },
             ),
             const SizedBox(height: 8),

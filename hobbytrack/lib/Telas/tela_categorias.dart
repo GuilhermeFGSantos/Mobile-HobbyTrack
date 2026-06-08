@@ -6,6 +6,8 @@ import 'package:hobbytrack/Telas/tela_notificacoes.dart';
 import 'package:hobbytrack/Telas/tela_nova_categoria.dart';
 import 'package:hobbytrack/Telas/tela_perfil.dart';
 import 'auth_widgets.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class TelaCategorias extends StatefulWidget {
   const TelaCategorias({super.key});
@@ -15,6 +17,75 @@ class TelaCategorias extends StatefulWidget {
 }
 
 class _TelaCategoriasState extends State<TelaCategorias> {
+  List<QueryDocumentSnapshot> categorias = [];
+  List<QueryDocumentSnapshot> categoriasFiltradas = [];
+  final TextEditingController buscaController = TextEditingController();
+  bool carregando = true;
+
+  Future<void> buscarCategorias() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      setState(() => carregando = false);
+      return;
+    }
+    ;
+
+    try {
+      final snapshot = await FirebaseFirestore.instance
+          .collection('categorias')
+          .where('userId', isEqualTo: user.uid)
+          .get();
+
+      if (!mounted) return;
+
+      setState(() {
+        categorias = snapshot.docs;
+        carregando = false;
+        categoriasFiltradas = snapshot.docs;
+      });
+    } catch (e) {
+      print('Erro ao buscar categorias: $e');
+      if (!mounted) return;
+      setState(() => carregando = false);
+    }
+  }
+
+  Future<void> excluirCategoria(String docId) async {
+    try {
+      await FirebaseFirestore.instance
+          .collection('categorias')
+          .doc(docId)
+          .delete();
+    } catch (e) {
+      print('Erro ao excluir categoria: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Erro ao excluir categoria.')),
+      );
+    }
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    buscarCategorias();
+  }
+
+  void filtrarCategorias(String texto) {
+    setState(() {
+      categoriasFiltradas = categorias.where((doc) {
+        final data = doc.data() as Map<String, dynamic>;
+        final nome = (data['nome'] ?? '').toString().toLowerCase();
+        return nome.contains(texto.toLowerCase());
+      }).toList();
+    });
+  }
+
+  @override
+  void dispose() {
+    buscaController.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     return HomeBackground(
@@ -68,7 +139,9 @@ class _TelaCategoriasState extends State<TelaCategorias> {
                     borderRadius: BorderRadius.circular(8),
                     border: Border.all(color: Colors.grey.shade300),
                   ),
-                  child: const TextField(
+                  child: TextField(
+                    onChanged: filtrarCategorias,
+                    controller: buscaController,
                     decoration: InputDecoration(
                       hintText: 'Buscar',
                       hintStyle: TextStyle(color: Colors.grey, fontSize: 14),
@@ -85,37 +158,34 @@ class _TelaCategoriasState extends State<TelaCategorias> {
                 const SizedBox(height: 16),
 
                 Expanded(
-                  child: ListView(
-                    padding: EdgeInsets.zero,
-                    physics: const BouncingScrollPhysics(),
-                    children: [
-                      _buildCategoryCard(
-                        context: context,
-                        icon: Icons.check_circle_outline,
-                        iconColor: Colors.orange.shade400,
-                        bgColor: Colors.orange.shade50,
-                        title: 'Hábito',
-                        subtitle: '5 metas',
-                      ),
-                      _buildCategoryCard(
-                        context: context,
-                        icon: Icons.menu_book_rounded,
-                        iconColor: Colors.green.shade400,
-                        bgColor: Colors.green.shade50,
-                        title: 'Leitura',
-                        subtitle: '3 metas',
-                      ),
-                      _buildCategoryCard(
-                        context: context,
-                        icon: Icons
-                            .pets_rounded, // Usado ícone similar ao da imagem
-                        iconColor: Colors.purple.shade300,
-                        bgColor: Colors.purple.shade50,
-                        title: 'Exercícios',
-                        subtitle: '2 metas',
-                      ),
-                    ],
-                  ),
+                  child: carregando
+                      ? const Center(child: CircularProgressIndicator())
+                      : categorias.isEmpty
+                      ? const Center(
+                          child: Text(
+                            'Nenhuma categoria criada ainda.',
+                            style: TextStyle(color: Colors.grey),
+                          ),
+                        )
+                      : ListView.builder(
+                          padding: EdgeInsets.zero,
+                          physics: const BouncingScrollPhysics(),
+                          itemCount: categoriasFiltradas.length,
+                          itemBuilder: (context, index) {
+                            final data =
+                                categoriasFiltradas[index].data()
+                                    as Map<String, dynamic>;
+                            final docId = categoriasFiltradas[index].id;
+
+                            return _buildCategoryCard(
+                              context: context,
+                              docId: docId,
+                              emoji: data['emoji'] ?? '📁',
+                              cor: Color(data['cor'] ?? 0xFF7B2CBF),
+                              title: data['nome'] ?? 'Sem nome',
+                            );
+                          },
+                        ),
                 ),
               ],
             ),
@@ -148,7 +218,7 @@ class _TelaCategoriasState extends State<TelaCategorias> {
                     MaterialPageRoute(
                       builder: (_) => const TelaNovaCategoria(),
                     ),
-                  );
+                  ).then((_) => buscarCategorias());
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.transparent,
@@ -254,7 +324,11 @@ class _TelaCategoriasState extends State<TelaCategorias> {
     );
   }
 
-  void mostrarDialogoExclusao(BuildContext context, String nomeCategoria) {
+  void mostrarDialogoExclusao(
+    BuildContext context,
+    String nomeCategoria,
+    String docId,
+  ) {
     showDialog(
       context: context,
       barrierDismissible: true,
@@ -340,8 +414,10 @@ class _TelaCategoriasState extends State<TelaCategorias> {
                       child: SizedBox(
                         height: 42,
                         child: ElevatedButton(
-                          onPressed: () {
+                          onPressed: () async {
+                            excluirCategoria(docId);
                             Navigator.pop(context);
+                            buscarCategorias();
                           },
                           style: ElevatedButton.styleFrom(
                             backgroundColor: const Color(
@@ -391,11 +467,10 @@ class _TelaCategoriasState extends State<TelaCategorias> {
 
   Widget _buildCategoryCard({
     required BuildContext context,
-    required IconData icon,
-    required Color iconColor,
-    required Color bgColor,
+    required String emoji,
+    required Color cor,
     required String title,
-    required String subtitle,
+    required String docId,
   }) {
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
@@ -407,17 +482,13 @@ class _TelaCategoriasState extends State<TelaCategorias> {
       child: ListTile(
         contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
         leading: Container(
-          padding: const EdgeInsets.all(6),
-          decoration: BoxDecoration(color: bgColor, shape: BoxShape.circle),
-          child: Icon(icon, color: iconColor, size: 22),
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(color: cor, shape: BoxShape.circle),
+          child: Text(emoji, style: const TextStyle(fontSize: 20)),
         ),
         title: Text(
           title,
           style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-        ),
-        subtitle: Text(
-          subtitle,
-          style: TextStyle(color: Colors.grey.shade500, fontSize: 11),
         ),
         trailing: PopupMenuButton<String>(
           icon: const Icon(Icons.more_horiz),
@@ -427,7 +498,7 @@ class _TelaCategoriasState extends State<TelaCategorias> {
           ),
           onSelected: (value) {
             if (value == 'excluir') {
-              mostrarDialogoExclusao(context, title);
+              mostrarDialogoExclusao(context, title, docId);
             } else {
               Navigator.push(
                 context,

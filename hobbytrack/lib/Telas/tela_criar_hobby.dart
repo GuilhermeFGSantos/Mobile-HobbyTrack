@@ -30,6 +30,10 @@ class _CriarHobbyState extends State<CriarHobby> {
   String metaSelecionada = 'Minutos';
   bool mostrarNotificacao = true;
   List<String> diasParaSalvar = [];
+  bool temConflito = false;
+  String nomeConflitoHobby = '';
+  String horarioConflito = '';
+  String diasConflito = '';
 
   TimeOfDay horarioLembrete = const TimeOfDay(hour: 10, minute: 00);
 
@@ -60,6 +64,7 @@ class _CriarHobbyState extends State<CriarHobby> {
     if (novoHorario != null) {
       setState(() {
         horarioLembrete = novoHorario;
+        verificarChoqueHorario();
       });
     }
   }
@@ -79,6 +84,9 @@ class _CriarHobbyState extends State<CriarHobby> {
       );
       return;
     }
+
+    await verificarChoqueHorario();
+    if (temConflito) return;
 
     final int? metaValorNumerico = int.tryParse(
       metaQuantidadeController.text.trim(),
@@ -132,6 +140,63 @@ class _CriarHobbyState extends State<CriarHobby> {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text('Erro ao salvar: $e')));
+    }
+  }
+
+  Future<void> verificarChoqueHorario() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    final hobbiesSnap = await FirebaseFirestore.instance
+        .collection('hobbies')
+        .where('userId', isEqualTo: user.uid)
+        .get();
+
+    final String horarioAtual =
+        '${horarioLembrete.hour.toString().padLeft(2, '0')}:${horarioLembrete.minute.toString().padLeft(2, '0')}';
+
+    List<String> diasAtual = [];
+    for (int i = 0; i < diasSelecionados.length; i++) {
+      if (diasSelecionados[i]) diasAtual.add(nomesDias[i]);
+    }
+
+    for (final hobbyDoc in hobbiesSnap.docs) {
+      final metasSnap = await hobbyDoc.reference.collection('metas').get();
+
+      for (final metaDoc in metasSnap.docs) {
+        final data = metaDoc.data();
+        final String horarioOutro = data['horario_lembrete'] ?? '';
+        final List<dynamic> diasOutro = data['dias_semana'] ?? [];
+        final bool notificacaoAtiva = data['mostrar_notificacao'] ?? false;
+
+        if (!notificacaoAtiva) continue;
+
+        if (horarioOutro == horarioAtual) {
+          final diasEmComum = diasAtual
+              .where((dia) => diasOutro.contains(dia))
+              .toList();
+          if (diasEmComum.isNotEmpty) {
+            if (mounted) {
+              setState(() {
+                temConflito = true;
+                nomeConflitoHobby = hobbyDoc.data()['nome'] ?? 'outro hobby';
+                horarioConflito = horarioAtual;
+                diasConflito = diasEmComum.join(', ');
+              });
+            }
+            return;
+          }
+        }
+      }
+    }
+
+    if (mounted) {
+      setState(() {
+        temConflito = false;
+        nomeConflitoHobby = '';
+        horarioConflito = '';
+        diasConflito = '';
+      });
     }
   }
 
@@ -233,22 +298,34 @@ class _CriarHobbyState extends State<CriarHobby> {
                           const SizedBox(height: 32),
 
                           Center(
-                            child: SizedBox(
+                            child: Container(
                               width: 230,
                               height: 50,
+                              decoration: BoxDecoration(
+                                gradient: temConflito
+                                    ? const LinearGradient(
+                                        colors: [Colors.grey, Colors.grey],
+                                      )
+                                    : const LinearGradient(
+                                        colors: [corLaranjaApp, corRoxoApp],
+                                        begin: Alignment.centerLeft,
+                                        end: Alignment.centerRight,
+                                      ),
+                                borderRadius: BorderRadius.circular(25),
+                              ),
                               child: ElevatedButton(
-                                onPressed: () {
-                                  salvarHobbyFirebase();
-                                },
+                                onPressed: temConflito
+                                    ? null
+                                    : salvarHobbyFirebase,
                                 style: ElevatedButton.styleFrom(
-                                  backgroundColor: const Color(0xFF949494),
+                                  backgroundColor: Colors.transparent,
+                                  shadowColor: Colors.transparent,
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(25),
                                   ),
-                                  elevation: 0,
                                 ),
                                 child: const Text(
-                                  'Criar',
+                                  'Salvar',
                                   style: TextStyle(
                                     color: Colors.white,
                                     fontSize: 22,
@@ -506,7 +583,7 @@ class _CriarHobbyState extends State<CriarHobby> {
             ],
           ),
           const SizedBox(height: 16),
-          _buildConflitoHorarioCard(),
+          if (temConflito) _buildConflitoHorarioCard(),
         ],
       ),
     );
@@ -638,7 +715,7 @@ class _CriarHobbyState extends State<CriarHobby> {
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        'Há um conflito de horário com outras atividades já agendadas: Leitura diária',
+                        'Há um conflito com "$nomeConflitoHobby".', // ← dinâmico
                         style: TextStyle(
                           color: Colors.black.withOpacity(0.7),
                           fontSize: 12,
@@ -658,9 +735,9 @@ class _CriarHobbyState extends State<CriarHobby> {
               color: Color(0xFFFEE7D6),
               borderRadius: BorderRadius.vertical(bottom: Radius.circular(9)),
             ),
-            child: const Text(
-              'Segundas às 19:30',
-              style: TextStyle(
+            child: Text(
+              '$diasConflito às $horarioConflito', // ← dinâmico
+              style: const TextStyle(
                 fontWeight: FontWeight.bold,
                 fontSize: 14,
                 color: corTextoLabels,
