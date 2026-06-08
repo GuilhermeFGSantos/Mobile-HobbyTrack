@@ -5,6 +5,7 @@ import 'auth_widgets.dart';
 import 'meta_model.dart';
 import 'mobile_frame.dart';
 import 'tela_categorias.dart';
+import 'tela_criar_hobby.dart';
 import 'tela_insights.dart';
 import 'tela_notificacoes.dart';
 import 'tela_nova_meta.dart';
@@ -382,7 +383,10 @@ class _TelaMetasState extends State<TelaMetas> {
                 context,
                 MaterialPageRoute(builder: (_) => const TelaInsights()),
               ),
-              onAddTap: () => abrirNovaMeta(),
+              onAddTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const CriarHobby()),
+              ),
             ),
           );
         },
@@ -498,9 +502,7 @@ class _PainelEstatisticas extends StatelessWidget {
           Expanded(
             child: _ItemEstatistica(
               titulo: 'Mais frequente do mês',
-              valor: mf == null ? '—' : mf.hobby.nome,
-              icone: mf?.icone,
-              corIcone: mf?.cor,
+              valor: mf == null ? '—' : '${mf.emoji} ${mf.hobby.nome}',
             ),
           ),
         ],
@@ -512,15 +514,8 @@ class _PainelEstatisticas extends StatelessWidget {
 class _ItemEstatistica extends StatelessWidget {
   final String titulo;
   final String valor;
-  final IconData? icone;
-  final Color? corIcone;
 
-  const _ItemEstatistica({
-    required this.titulo,
-    required this.valor,
-    this.icone,
-    this.corIcone,
-  });
+  const _ItemEstatistica({required this.titulo, required this.valor});
 
   @override
   Widget build(BuildContext context) {
@@ -528,26 +523,16 @@ class _ItemEstatistica extends StatelessWidget {
       children: [
         Text(titulo, style: const TextStyle(fontSize: 12, color: _grayText)),
         const SizedBox(height: 2),
-        Row(
-          mainAxisSize: MainAxisSize.min,
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            if (icone != null) ...[
-              Icon(icone, size: 18, color: corIcone ?? _orange),
-              const SizedBox(width: 4),
-            ],
-            Flexible(
-              child: Text(
-                valor,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w700,
-                  color: _orange,
-                ),
-              ),
-            ),
-          ],
+        Text(
+          valor,
+          textAlign: TextAlign.center,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.w700,
+            color: _orange,
+          ),
         ),
       ],
     );
@@ -671,7 +656,7 @@ class _CardMeta extends StatelessWidget {
                 color: Colors.white.withOpacity(0.7),
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: Icon(meta.icone, color: meta.cor, size: 22),
+              child: Text(meta.emoji, style: const TextStyle(fontSize: 22)),
             ),
             const SizedBox(width: 12),
 

@@ -61,10 +61,12 @@ class _TelaNovaMetaState extends State<TelaNovaMeta> {
   // Diferente da TelaMetas, aqui não precisa ser tempo real: a lista de
   // hobbies não muda enquanto a pessoa preenche o formulário.
   Future<void> _carregarHobbies() async {
-    final email = FirebaseAuth.instance.currentUser?.email ?? '';
+    // Os hobbies são gravados pela tela CriarHobby com o campo `userId`
+    // (o uid do Firebase Auth), então é por ele que filtramos.
+    final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
     final snap = await _db
         .collection('hobbies')
-        .where('criado_por', isEqualTo: email)
+        .where('userId', isEqualTo: uid)
         .get();
     if (!mounted) return;
     final hobbies = snap.docs.map(Hobby.fromDoc).toList();
@@ -898,7 +900,7 @@ class _SeletorHobby extends StatelessWidget {
                       color: h.cor.withOpacity(0.22),
                       borderRadius: BorderRadius.circular(6),
                     ),
-                    child: Icon(h.icone, color: h.cor, size: 16),
+                    child: Text(h.emoji, style: const TextStyle(fontSize: 15)),
                   ),
                   const SizedBox(width: 10),
                   Text(h.nome),

@@ -31,30 +31,23 @@ T _enumFromName<T extends Enum>(List<T> valores, String? nome, T padrao) {
   return padrao;
 }
 
-// Mapeia o `icone_nome` salvo no Firestore (mesmo esquema dos hobbies) para um
-// IconData do Flutter. Espelha o mapeamento usado na TelaHome, mantendo o
-// módulo de Metas independente.
-IconData iconeHobby(String nome) {
-  switch (nome) {
-    case 'leitura':
-      return Icons.menu_book_rounded;
-    case 'musica':
-      return Icons.music_note_rounded;
-    case 'pintura':
-      return Icons.brush_rounded;
-    case 'esportes':
-      return Icons.sports_basketball_rounded;
-    case 'culinaria':
-      return Icons.restaurant_rounded;
-    case 'fotografia':
-      return Icons.camera_alt_rounded;
-    case 'jogos':
-      return Icons.videogame_asset_rounded;
-    case 'yoga':
-      return Icons.self_improvement_rounded;
-    default:
-      return Icons.star_rounded;
-  }
+// Os hobbies são criados na tela CriarHobby, que salva apenas um `emoji` (texto)
+// e nenhuma cor. Para os cards de Metas ficarem coloridos, derivamos uma cor
+// estável a partir do id do hobby, escolhendo de uma paleta fixa.
+const List<Color> _paletaHobby = [
+  Color(0xFFFF9B3F),
+  Color(0xFFEF4444),
+  Color(0xFFFF7A00),
+  Color(0xFFB992F4),
+  Color(0xFF3B82F6),
+  Color(0xFF22C55E),
+  Color(0xFF8738F2),
+];
+
+Color corDoHobby(String semente) {
+  if (semente.isEmpty) return _paletaHobby.last;
+  final soma = semente.codeUnits.fold<int>(0, (a, c) => a + c);
+  return _paletaHobby[soma % _paletaHobby.length];
 }
 
 class Frequencia {
@@ -142,35 +135,35 @@ class Frequencia {
 
 // Hobby é a entidade-pai: representa a "área" de prática do usuário
 // (Leitura, Violão, Jogos...). Uma Meta é sempre derivada de um Hobby.
-// O hobby fornece identidade visual (ícone + cor) — a Meta apenas herda.
+// O hobby fornece identidade visual (emoji + cor) — a Meta apenas herda.
 //
-// Os campos espelham o documento da coleção `hobbies` no Firestore:
-//   nome (string), icone_nome (string) e cor (int -> Color).
+// Os campos espelham o documento da coleção `hobbies`, no formato gravado
+// pela tela CriarHobby: nome (string) e emoji (string). A cor não é salva
+// no banco — derivamos uma estável a partir do id.
 class Hobby {
   final String id;
   final String nome;
-  final String iconeNome;
+  final String emoji;
   final Color cor;
 
   const Hobby({
     required this.id,
     required this.nome,
-    required this.iconeNome,
+    required this.emoji,
     required this.cor,
   });
 
   // Constrói um Hobby a partir de um documento da coleção `hobbies`.
   factory Hobby.fromDoc(DocumentSnapshot<Map<String, dynamic>> doc) {
     final d = doc.data() ?? {};
+    final emoji = (d['emoji'] as String?)?.trim();
     return Hobby(
       id: doc.id,
       nome: d['nome'] as String? ?? '',
-      iconeNome: d['icone_nome'] as String? ?? '',
-      cor: Color((d['cor'] as num?)?.toInt() ?? 0xFF8738F2),
+      emoji: (emoji == null || emoji.isEmpty) ? '🎯' : emoji,
+      cor: corDoHobby(doc.id),
     );
   }
-
-  IconData get icone => iconeHobby(iconeNome);
 
   // Igualdade por id: necessário pro DropdownButton reconhecer o hobby
   // selecionado mesmo sendo uma instância diferente vinda do Firestore.
@@ -218,7 +211,7 @@ class Meta {
       hobby: Hobby(
         id: d['hobby_id'] as String? ?? '',
         nome: d['hobby_nome'] as String? ?? '',
-        iconeNome: d['hobby_icone'] as String? ?? '',
+        emoji: d['hobby_emoji'] as String? ?? '🎯',
         cor: Color((d['hobby_cor'] as num?)?.toInt() ?? 0xFF8738F2),
       ),
       tipo: _enumFromName(
@@ -253,7 +246,7 @@ class Meta {
         'hobby_id': hobby.id,
         'hobby_nome': hobby.nome,
         'hobby_cor': hobby.cor.toARGB32(),
-        'hobby_icone': hobby.iconeNome,
+        'hobby_emoji': hobby.emoji,
         'tipo': tipo.name,
         'frequencia': frequencia.toMap(),
         'valor_alvo': valorAlvo,
@@ -264,7 +257,7 @@ class Meta {
       };
 
   // Identidade visual derivada do hobby.
-  IconData get icone => hobby.icone;
+  String get emoji => hobby.emoji;
   Color get cor => hobby.cor;
 
   String get subtitulo => '${hobby.nome} · ${frequencia.descricao}';
