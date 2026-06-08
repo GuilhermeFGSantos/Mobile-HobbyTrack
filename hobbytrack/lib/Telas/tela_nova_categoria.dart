@@ -5,6 +5,8 @@ import 'tela_insights.dart';
 import 'tela_metas.dart';
 import 'tela_notificacoes.dart';
 import 'tela_perfil.dart' hide CustomBottomBar;
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class TelaNovaCategoria extends StatefulWidget {
   const TelaNovaCategoria({super.key});
@@ -22,6 +24,58 @@ class _TelaNovaCategoriaState extends State<TelaNovaCategoria> {
     const Color(0xFFFFB84C), // Laranja
     const Color(0xFFA5D7E8), // Ciano claro
   ];
+
+  final TextEditingController nomeController = TextEditingController();
+  final TextEditingController emojiController = TextEditingController();
+  bool _salvando = false;
+
+  void dispose() {
+    nomeController.dispose();
+    emojiController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _salvarCategoria() async {
+    final nome = nomeController.text.trim();
+    final emoji = emojiController.text.trim();
+
+    if (nome.isEmpty || emoji.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Preencha todos os campos.')),
+      );
+      return;
+    }
+
+    setState(() => _salvando = true);
+
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) return;
+
+      await FirebaseFirestore.instance.collection('categorias').add({
+        'userId': user.uid,
+        'nome': nome,
+        'emoji': emoji,
+        'cor': coresOpcoes[corSelecionada].value, // salva o int da cor
+        'criadoEm': FieldValue.serverTimestamp(),
+      });
+
+      if (mounted) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const TelaCategorias()),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Erro ao salvar: $e')));
+      }
+    } finally {
+      if (mounted) setState(() => _salvando = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -75,11 +129,17 @@ class _TelaNovaCategoriaState extends State<TelaNovaCategoria> {
                 const SizedBox(height: 30),
 
                 _buildLabel('Nome da categoria'),
-                _buildTextField('Digite o nome da meta'),
+                _buildTextField(
+                  'Digite o nome da meta',
+                  controller: nomeController,
+                ),
 
                 const SizedBox(height: 20),
                 _buildLabel('Emoji'),
-                _buildTextField('Toque para escolher', readOnly: true),
+                _buildTextField(
+                  'Toque para escolher',
+                  controller: emojiController,
+                ),
 
                 const SizedBox(height: 20),
                 _buildLabel('Cor'),
@@ -121,14 +181,7 @@ class _TelaNovaCategoriaState extends State<TelaNovaCategoria> {
                       borderRadius: BorderRadius.circular(25),
                     ),
                     child: ElevatedButton(
-                      onPressed: () {
-                        Navigator.pushReplacement(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => const TelaCategorias(),
-                          ),
-                        );
-                      },
+                      onPressed: _salvando ? null : _salvarCategoria,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.transparent,
                         shadowColor: Colors.transparent,
@@ -181,7 +234,12 @@ class _TelaNovaCategoriaState extends State<TelaNovaCategoria> {
     ),
   );
 
-  Widget _buildTextField(String hint, {bool readOnly = false}) => Container(
+  Widget _buildTextField(
+    String hint, {
+    bool readOnly = false,
+    TextEditingController? controller,
+    VoidCallback? onTap,
+  }) => Container(
     padding: const EdgeInsets.symmetric(horizontal: 12),
     decoration: BoxDecoration(
       color: Colors.white,
@@ -190,6 +248,7 @@ class _TelaNovaCategoriaState extends State<TelaNovaCategoria> {
     ),
     child: TextField(
       readOnly: readOnly,
+      controller: controller,
       decoration: InputDecoration(
         hintText: hint,
         border: InputBorder.none,

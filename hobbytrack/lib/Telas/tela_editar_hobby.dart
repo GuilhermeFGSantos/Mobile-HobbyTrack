@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'auth_widgets.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 const Color corRoxoApp = Color(0xFF7B2CBF);
 const Color corLaranjaApp = Color(0xFFF77F00);
@@ -37,6 +38,11 @@ class _EditarHobbyState extends State<EditarHobby> {
   late bool repetirOpcao;
   late bool mostrarNotificacao;
   late TimeOfDay horarioLembrete;
+
+  bool temConflito = false;
+  String nomeConflitoHobby = '';
+  String horarioConflito = '';
+  String diasConflito = '';
 
   final List<String> nomesDias = [
     'Dom',
@@ -116,6 +122,9 @@ class _EditarHobbyState extends State<EditarHobby> {
       return;
     }
 
+    await verificarChoqueHorario();
+    if (temConflito) return;
+
     final int valorNumerico =
         int.tryParse(metaQuantidadeController.text.trim()) ?? 20;
 
@@ -178,6 +187,66 @@ class _EditarHobbyState extends State<EditarHobby> {
     if (obtida != null && obtida != horarioLembrete) {
       setState(() {
         horarioLembrete = obtida;
+        verificarChoqueHorario();
+      });
+    }
+  }
+
+  Future<void> verificarChoqueHorario() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    final hobbiesSnap = await FirebaseFirestore.instance
+        .collection('hobbies')
+        .where('userId', isEqualTo: user.uid)
+        .get();
+
+    final String horarioAtual =
+        '${horarioLembrete.hour.toString().padLeft(2, '0')}:${horarioLembrete.minute.toString().padLeft(2, '0')}';
+
+    List<String> diasAtual = [];
+    for (int i = 0; i < diasSelecionados.length; i++) {
+      if (diasSelecionados[i]) diasAtual.add(nomesDias[i]);
+    }
+
+    for (final hobbyDoc in hobbiesSnap.docs) {
+      if (hobbyDoc.id == widget.hobbyId) continue; // ← ignora o próprio hobby
+
+      final metasSnap = await hobbyDoc.reference.collection('metas').get();
+
+      for (final metaDoc in metasSnap.docs) {
+        final data = metaDoc.data();
+        final String horarioOutro = data['horario_lembrete'] ?? '';
+        final List<dynamic> diasOutro = data['dias_semana'] ?? [];
+        final bool notificacaoAtiva = data['mostrar_notificacao'] ?? false;
+
+        if (!notificacaoAtiva) continue;
+
+        if (horarioOutro == horarioAtual) {
+          final diasEmComum = diasAtual
+              .where((dia) => diasOutro.contains(dia))
+              .toList();
+          if (diasEmComum.isNotEmpty) {
+            if (mounted) {
+              setState(() {
+                temConflito = true;
+                nomeConflitoHobby = hobbyDoc.data()['nome'] ?? 'outro hobby';
+                horarioConflito = horarioAtual;
+                diasConflito = diasEmComum.join(', ');
+              });
+            }
+            return;
+          }
+        }
+      }
+    }
+
+    if (mounted) {
+      setState(() {
+        temConflito = false;
+        nomeConflitoHobby = '';
+        horarioConflito = '';
+        diasConflito = '';
       });
     }
   }
@@ -282,11 +351,15 @@ class _EditarHobbyState extends State<EditarHobby> {
                               width: 230,
                               height: 50,
                               decoration: BoxDecoration(
-                                gradient: const LinearGradient(
-                                  colors: [corLaranjaApp, corRoxoApp],
-                                  begin: Alignment.centerLeft,
-                                  end: Alignment.centerRight,
-                                ),
+                                gradient: temConflito
+                                    ? const LinearGradient(
+                                        colors: [Colors.grey, Colors.grey],
+                                      )
+                                    : const LinearGradient(
+                                        colors: [corLaranjaApp, corRoxoApp],
+                                        begin: Alignment.centerLeft,
+                                        end: Alignment.centerRight,
+                                      ),
                                 borderRadius: BorderRadius.circular(25),
                               ),
                               child: ElevatedButton(
@@ -534,6 +607,9 @@ class _EditarHobbyState extends State<EditarHobby> {
               ),
             ],
           ),
+
+          const SizedBox(height: 16),
+          if (temConflito) _buildConflitoHorarioCard(),
         ],
       ),
     );
@@ -583,7 +659,10 @@ class _EditarHobbyState extends State<EditarHobby> {
         return GestureDetector(
           onTap: () {
             setState(() {
-              diasSelecionados[index] = !diasSelecionados[index];
+              setState(
+                () => diasSelecionados[index] = !diasSelecionados[index],
+              );
+              verificarChoqueHorario();
             });
           },
           child: Container(
@@ -623,6 +702,75 @@ class _EditarHobbyState extends State<EditarHobby> {
           fontSize: 16,
           color: corTextoLabels,
         ),
+      ),
+    );
+  }
+
+  Widget _buildConflitoHorarioCard() {
+    return Container(
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFF6EE),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: const Color(0xFFEAA675)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(12),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Icon(
+                  Icons.warning_amber_rounded,
+                  color: corLaranjaApp,
+                  size: 40,
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Conflito de Horário',
+                        style: TextStyle(
+                          color: corLaranjaApp,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 15,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        'Há um conflito com "$nomeConflitoHobby".',
+                        style: TextStyle(
+                          color: Colors.black.withOpacity(0.7),
+                          fontSize: 12,
+                          height: 1.3,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: const BoxDecoration(
+              color: Color(0xFFFEE7D6),
+              borderRadius: BorderRadius.vertical(bottom: Radius.circular(9)),
+            ),
+            child: Text(
+              '$diasConflito às $horarioConflito',
+              style: const TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 14,
+                color: corTextoLabels,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
