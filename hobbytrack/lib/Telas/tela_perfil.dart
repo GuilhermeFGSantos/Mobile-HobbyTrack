@@ -6,6 +6,12 @@ import 'tela_insights.dart';
 import 'tela_metas.dart';
 import 'tela_notificacoes.dart';
 
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+
+import '../services/auth_service.dart';
+import 'tela_login.dart';
+
 class TelaPerfil extends StatefulWidget {
   const TelaPerfil({super.key});
 
@@ -14,12 +20,13 @@ class TelaPerfil extends StatefulWidget {
 }
 
 class _TelaPerfilState extends State<TelaPerfil> {
-  // Futuramente você pode trocar esses valores por dados vindos do login/back-end.
-  String nomeUsuario = 'Ana lima';
-  String emailUsuario = 'ana.souza@gmail.com';
+  String nomeUsuario = 'Carregando...';
+  String emailUsuario = '';
 
   late TextEditingController nomeController;
   late TextEditingController emailController;
+
+  final AuthService authService = AuthService();
 
   static const Color backgroundColor = Color(0xFFFFF7F0);
   static const Color purple = Color(0xFF8738F2);
@@ -30,8 +37,33 @@ class _TelaPerfilState extends State<TelaPerfil> {
   void initState() {
     super.initState();
 
-    nomeController = TextEditingController(text: nomeUsuario);
-    emailController = TextEditingController(text: emailUsuario);
+    nomeController = TextEditingController();
+    emailController = TextEditingController();
+
+    carregarDadosUsuario();
+  }
+
+  Future<void> carregarDadosUsuario() async {
+    final usuario = FirebaseAuth.instance.currentUser;
+
+    if (usuario == null) {
+      return;
+    }
+
+    final doc = await FirebaseFirestore.instance
+        .collection('usuarios')
+        .doc(usuario.uid)
+        .get();
+
+    final dados = doc.data();
+
+    setState(() {
+      nomeUsuario = dados?['nome'] ?? usuario.displayName ?? 'Usuário';
+      emailUsuario = usuario.email ?? '';
+
+      nomeController.text = nomeUsuario;
+      emailController.text = emailUsuario;
+    });
   }
 
   @override
@@ -41,19 +73,40 @@ class _TelaPerfilState extends State<TelaPerfil> {
     super.dispose();
   }
 
-  void salvarDadosPerfil() {
-    setState(() {
-      nomeUsuario = nomeController.text;
-      emailUsuario = emailController.text;
-    });
+ Future<void> salvarDadosPerfil() async {
+  final usuario = FirebaseAuth.instance.currentUser;
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Dados do perfil atualizados!'),
-        duration: Duration(seconds: 2),
-      ),
-    );
+  if (usuario == null) {
+    return;
   }
+
+  final novoNome = nomeController.text.trim();
+
+  await usuario.updateDisplayName(novoNome);
+
+  await FirebaseFirestore.instance
+      .collection('usuarios')
+      .doc(usuario.uid)
+      .set({
+    'nome': novoNome,
+    'email': usuario.email,
+    'usuario_logado': usuario.email,
+    'criado_por': usuario.email,
+    'atualizado_em': FieldValue.serverTimestamp(),
+  }, SetOptions(merge: true));
+
+  setState(() {
+    nomeUsuario = novoNome;
+    emailUsuario = usuario.email ?? '';
+  });
+
+  ScaffoldMessenger.of(context).showSnackBar(
+    const SnackBar(
+      content: Text('Dados do perfil atualizados!'),
+      duration: Duration(seconds: 2),
+    ),
+  );
+}
 
 void alterarSenha() {
   Navigator.push(
@@ -64,14 +117,19 @@ void alterarSenha() {
   );
 }
 
-  void sairDaConta() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Função de sair da conta será conectada depois.'),
-        duration: Duration(seconds: 2),
-      ),
-    );
-  }
+ Future<void> sairDaConta() async {
+  await authService.sair();
+
+  if (!mounted) return;
+
+  Navigator.pushAndRemoveUntil(
+    context,
+    MaterialPageRoute(
+      builder: (_) => const TelaLogin(),
+    ),
+    (route) => false,
+  );
+}
 
   void botaoMenuSemAcao(String nomeTela) {
     ScaffoldMessenger.of(context).showSnackBar(
@@ -258,6 +316,7 @@ void alterarSenha() {
 
                                     TextField(
                                       controller: emailController,
+                                      enabled: false,
                                       keyboardType: TextInputType.emailAddress,
                                       decoration: InputDecoration(
                                         contentPadding:
