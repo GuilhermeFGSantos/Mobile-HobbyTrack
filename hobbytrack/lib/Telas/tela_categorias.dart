@@ -7,9 +7,14 @@ import 'package:hobbytrack/Telas/tela_nova_categoria.dart';
 import 'package:hobbytrack/Telas/tela_perfil.dart';
 import 'auth_widgets.dart';
 
-class TelaCategorias extends StatelessWidget {
+class TelaCategorias extends StatefulWidget {
   const TelaCategorias({super.key});
 
+  @override
+  State<TelaCategorias> createState() => _TelaCategoriasState();
+}
+
+class _TelaCategoriasState extends State<TelaCategorias> {
   @override
   Widget build(BuildContext context) {
     return HomeBackground(
@@ -206,7 +211,9 @@ class TelaCategorias extends StatelessWidget {
                         false,
                         onTap: () => Navigator.pushReplacement(
                           context,
-                          MaterialPageRoute(builder: (_) => const TelaInsights()),
+                          MaterialPageRoute(
+                            builder: (_) => const TelaInsights(),
+                          ),
                         ),
                       ),
                     ],
@@ -231,7 +238,11 @@ class TelaCategorias extends StatelessWidget {
                           end: Alignment.bottomRight,
                         ),
                       ),
-                      child: const Icon(Icons.add, color: Colors.white, size: 28),
+                      child: const Icon(
+                        Icons.add,
+                        color: Colors.white,
+                        size: 28,
+                      ),
                     ),
                   ),
                 ),
@@ -451,7 +462,12 @@ class TelaCategorias extends StatelessWidget {
     );
   }
 
-  Widget _buildBottomItem(IconData icon, String label, bool isActive, {VoidCallback? onTap}) {
+  Widget _buildBottomItem(
+    IconData icon,
+    String label,
+    bool isActive, {
+    VoidCallback? onTap,
+  }) {
     final color = isActive ? roxo : Colors.grey.shade600;
     return GestureDetector(
       onTap: onTap,

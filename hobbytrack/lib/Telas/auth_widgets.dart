@@ -19,25 +19,20 @@ class AuthBackground extends StatelessWidget {
 
     return Scaffold(
       backgroundColor: fundoFora,
+      resizeToAvoidBottomInset: true,
       body: Center(
-        child: FittedBox(
-          fit: BoxFit.contain,
-          child: SizedBox(
-            width: 390,
-            height: 844,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 430),
+          child: SizedBox.expand(
             child: Stack(
               children: [
-                // FUNDO OFF-WHITE GERAL
-                Container(
-                  width: double.infinity,
-                  height: double.infinity,
-                  color: const Color(0xFFF8F3EC),
-                ),
+                Container(color: const Color(0xFFF8F3EC)),
+
                 Positioned(
                   top: 0,
                   left: 0,
                   right: 0,
-                  height: cadastro ? 280 : 300,
+                  height: cadastro ? 260 : 280,
                   child: Container(
                     decoration: const BoxDecoration(
                       gradient: LinearGradient(
@@ -55,25 +50,281 @@ class AuthBackground extends StatelessWidget {
                 ),
 
                 Positioned(
-                  top: cadastro ? 100 : 100,
+                  top: cadastro ? 82 : 95,
                   left: 0,
                   right: 0,
-                  bottom: 0,
-                  child: Image.asset(
-                    formaBranca,
-                    fit: cadastro ? BoxFit.fitWidth : BoxFit.cover,
-                    alignment: cadastro
-                        ? Alignment.topCenter
-                        : Alignment.center,
+                  child: TweenAnimationBuilder<double>(
+                    key: ValueKey(cadastro),
+                    duration: const Duration(milliseconds: 750),
+                    curve: Curves.easeOutBack,
+                    tween: Tween<double>(
+                      begin: cadastro ? -0.28 : 0.28,
+                      end: 0,
+                    ),
+                    builder: (context, angle, child) {
+                      return Transform.rotate(
+                        angle: angle,
+                        alignment: Alignment.topCenter,
+                        child: child,
+                      );
+                    },
+                    child: Image.asset(
+                      formaBranca,
+                      width: double.infinity,
+                      fit: BoxFit.fitWidth,
+                      alignment: Alignment.topCenter,
+                    ),
                   ),
                 ),
 
-                // CONTEÚDO DA TELA
-                child,
+                Positioned.fill(child: child),
               ],
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+class AuthLogo extends StatelessWidget {
+  const AuthLogo({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Image.asset(
+      'assets/logo.png',
+      width: 155,
+      height: 155,
+      fit: BoxFit.contain,
+    );
+  }
+}
+
+class AuthLock extends StatelessWidget {
+  const AuthLock({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Image.asset(
+      'assets/cadeado.png',
+      width: 120,
+      height: 120,
+      fit: BoxFit.contain,
+    );
+  }
+}
+
+class AuthInput extends StatelessWidget {
+  final String label;
+  final bool obscure;
+  final TextEditingController? controller;
+  final TextInputType? keyboardType;
+
+  const AuthInput({
+    super.key,
+    required this.label,
+    this.obscure = false,
+    this.controller,
+    this.keyboardType,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return TextField(
+      controller: controller,
+      keyboardType: keyboardType,
+      obscureText: obscure,
+      style: const TextStyle(fontSize: 14, color: texto),
+      decoration: InputDecoration(
+        labelText: label,
+        labelStyle: const TextStyle(fontSize: 14, color: texto),
+        enabledBorder: const UnderlineInputBorder(
+          borderSide: BorderSide(color: roxo, width: 2),
+        ),
+        focusedBorder: const UnderlineInputBorder(
+          borderSide: BorderSide(color: roxo, width: 2),
+        ),
+      ),
+    );
+  }
+}
+
+class GradientButton extends StatelessWidget {
+  final String text;
+  final VoidCallback onPressed;
+
+  const GradientButton({
+    super.key,
+    required this.text,
+    required this.onPressed,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onPressed,
+      child: Container(
+        width: 180,
+        height: 42,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          gradient: const LinearGradient(colors: [laranja, roxo]),
+        ),
+        child: Text(
+          text,
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 15,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class GoogleButton extends StatelessWidget {
+  final VoidCallback onPressed;
+  final bool carregando;
+
+  const GoogleButton({
+    super.key,
+    required this.onPressed,
+    this.carregando = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: carregando ? null : onPressed,
+      child: Container(
+        width: 220,
+        height: 44,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: const Color(0xFFE0E0E0), width: 1.2),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.08),
+              blurRadius: 8,
+              offset: const Offset(0, 3),
+            ),
+          ],
+        ),
+        child: carregando
+            ? const Center(
+                child: SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(strokeWidth: 2, color: roxo),
+                ),
+              )
+            : const Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    'G',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w800,
+                      color: Color(0xFF4285F4),
+                    ),
+                  ),
+                  SizedBox(width: 10),
+                  Text(
+                    'Entrar com Google',
+                    style: TextStyle(
+                      color: Color(0xFF3C4043),
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+      ),
+    );
+  }
+}
+
+class TopTabs extends StatelessWidget {
+  final bool cadastroSelecionado;
+  final VoidCallback entrar;
+  final VoidCallback cadastrar;
+
+  const TopTabs({
+    super.key,
+    required this.cadastroSelecionado,
+    required this.entrar,
+    required this.cadastrar,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 220,
+      height: 40,
+      padding: const EdgeInsets.all(3),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(25),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.15),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: GestureDetector(
+              onTap: entrar,
+              child: Container(
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(22),
+                  gradient: cadastroSelecionado
+                      ? null
+                      : const LinearGradient(colors: [roxo, laranja]),
+                ),
+                child: Text(
+                  'Entrar',
+                  style: TextStyle(
+                    color: cadastroSelecionado ? texto : Colors.white,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ),
+          ),
+          Expanded(
+            child: GestureDetector(
+              onTap: cadastrar,
+              child: Container(
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(22),
+                  gradient: cadastroSelecionado
+                      ? const LinearGradient(colors: [roxo, laranja])
+                      : null,
+                ),
+                child: Text(
+                  'Cadastrar-se',
+                  style: TextStyle(
+                    color: cadastroSelecionado ? Colors.white : texto,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -175,230 +426,109 @@ class HomeClipper extends CustomClipper<Path> {
   bool shouldReclip(CustomClipper<Path> oldClipper) => true;
 }
 
-class AuthLogo extends StatelessWidget {
-  const AuthLogo({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Image.asset(
-      'assets/logo.png',
-      width: 155,
-      height: 155,
-      fit: BoxFit.contain,
-    );
-  }
-}
-
-class AuthLock extends StatelessWidget {
-  const AuthLock({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Image.asset(
-      'assets/cadeado.png',
-      width: 130,
-      height: 130,
-      fit: BoxFit.contain,
-    );
-  }
-}
-
-class AuthInput extends StatelessWidget {
-  final String label;
-  final bool obscure;
-
-  const AuthInput({super.key, required this.label, this.obscure = false});
-
-  @override
-  Widget build(BuildContext context) {
-    return TextField(
-      obscureText: obscure,
-      style: const TextStyle(fontSize: 14, color: texto),
-      decoration: InputDecoration(
-        labelText: label,
-        labelStyle: const TextStyle(fontSize: 14, color: texto),
-        enabledBorder: const UnderlineInputBorder(
-          borderSide: BorderSide(color: roxo, width: 2),
-        ),
-        focusedBorder: const UnderlineInputBorder(
-          borderSide: BorderSide(color: roxo, width: 2),
-        ),
-      ),
-    );
-  }
-}
-
-class GradientButton extends StatelessWidget {
-  final String text;
-  final VoidCallback onPressed;
-
-  const GradientButton({
-    super.key,
-    required this.text,
-    required this.onPressed,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onPressed,
-      child: Container(
-        width: 180,
-        height: 42,
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(12),
-          gradient: const LinearGradient(colors: [laranja, roxo]),
-        ),
-        child: Text(
-          text,
-          style: const TextStyle(
-            color: Colors.white,
-            fontSize: 15,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class TopTabs extends StatelessWidget {
-  final bool cadastroSelecionado;
-  final VoidCallback entrar;
-  final VoidCallback cadastrar;
-
-  const TopTabs({
-    super.key,
-    required this.cadastroSelecionado,
-    required this.entrar,
-    required this.cadastrar,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 220,
-      height: 40,
-      padding: const EdgeInsets.all(3),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(25),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.15),
-            blurRadius: 6,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: GestureDetector(
-              onTap: entrar,
-              child: Container(
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(22),
-                  gradient: cadastroSelecionado
-                      ? null
-                      : const LinearGradient(colors: [roxo, laranja]),
-                ),
-                child: Text(
-                  'Entrar',
-                  style: TextStyle(
-                    color: cadastroSelecionado ? texto : Colors.white,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-            ),
-          ),
-          Expanded(
-            child: GestureDetector(
-              onTap: cadastrar,
-              child: Container(
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(22),
-                  gradient: cadastroSelecionado
-                      ? const LinearGradient(colors: [roxo, laranja])
-                      : null,
-                ),
-                child: Text(
-                  'Cadastrar-se',
-                  style: TextStyle(
-                    color: cadastroSelecionado ? Colors.white : texto,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 class CustomBottomBar extends StatelessWidget {
   final int activeIndex;
   final VoidCallback? onHomeTap;
   final VoidCallback? onMetasTap;
   final VoidCallback? onCategoriasTap;
   final VoidCallback? onInsightsTap;
+  final VoidCallback? onPerfilTap;
 
   const CustomBottomBar({
     super.key,
-    required this.activeIndex,
+    this.activeIndex = 0,
     this.onHomeTap,
     this.onMetasTap,
     this.onCategoriasTap,
     this.onInsightsTap,
+    this.onPerfilTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Stack(
-      alignment: Alignment.topCenter,
-      clipBehavior: Clip.none,
-      children: [
-        Container(
-          height: 65,
-          color: const Color(0xFFEAEAEA),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [
-              _buildBottomItem(Icons.home_outlined, 'Home', activeIndex == 0, onHomeTap),
-              _buildBottomItem(Icons.track_changes, 'Metas', activeIndex == 1, onMetasTap),
-              const SizedBox(width: 45),
-              _buildBottomItem(Icons.grid_view_rounded, 'Categorias', activeIndex == 2, onCategoriasTap),
-              _buildBottomItem(Icons.bar_chart_rounded, 'Insights', activeIndex == 3, onInsightsTap),
-            ],
+    return Container(
+      height: 72,
+      margin: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(28),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.12),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
           ),
-        ),
-      ],
+        ],
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceAround,
+        children: [
+          _ItemBottomBar(
+            icon: Icons.home_rounded,
+            label: 'Home',
+            ativo: activeIndex == 0,
+            onTap: onHomeTap ?? () {},
+          ),
+          _ItemBottomBar(
+            icon: Icons.flag_rounded,
+            label: 'Metas',
+            ativo: activeIndex == 1,
+            onTap: onMetasTap ?? () {},
+          ),
+          _ItemBottomBar(
+            icon: Icons.category_rounded,
+            label: 'Categorias',
+            ativo: activeIndex == 2,
+            onTap: onCategoriasTap ?? () {},
+          ),
+          _ItemBottomBar(
+            icon: Icons.insights_rounded,
+            label: 'Insights',
+            ativo: activeIndex == 3,
+            onTap: onInsightsTap ?? () {},
+          ),
+          _ItemBottomBar(
+            icon: Icons.person_rounded,
+            label: 'Perfil',
+            ativo: activeIndex == 4,
+            onTap: onPerfilTap ?? () {},
+          ),
+        ],
+      ),
     );
   }
+}
 
-  Widget _buildBottomItem(IconData icon, String label, bool isActive, VoidCallback? onTap) {
-    final color = isActive ? roxo : Colors.grey.shade600;
+class _ItemBottomBar extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final bool ativo;
+  final VoidCallback onTap;
+
+  const _ItemBottomBar({
+    required this.icon,
+    required this.label,
+    required this.ativo,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final Color cor = ativo ? roxo : texto;
+
     return GestureDetector(
       onTap: onTap,
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(icon, color: color, size: 22),
-          const SizedBox(height: 2),
+          Icon(icon, color: cor, size: 21),
+          const SizedBox(height: 4),
           Text(
             label,
             style: TextStyle(
-              color: color,
-              fontSize: 10,
-              fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
+              color: cor,
+              fontSize: 9,
+              fontWeight: ativo ? FontWeight.w700 : FontWeight.w500,
             ),
           ),
         ],
