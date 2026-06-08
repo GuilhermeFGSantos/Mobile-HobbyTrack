@@ -1,7 +1,11 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'auth_widgets.dart';
 import 'meta_model.dart';
 import 'mobile_frame.dart';
 import 'tela_categorias.dart';
+import 'tela_criar_hobby.dart';
 import 'tela_insights.dart';
 import 'tela_notificacoes.dart';
 import 'tela_nova_meta.dart';
@@ -28,42 +32,25 @@ class TelaMetas extends StatefulWidget {
 class _TelaMetasState extends State<TelaMetas> {
   FiltroMeta filtro = FiltroMeta.todas;
 
-  final List<Meta> metas = [
-    Meta(
-      titulo: 'Ler 12 livros este ano',
-      hobby: hobbiesMock.firstWhere((h) => h.id == 'leitura'),
-      tipo: TipoMeta.quantitativa,
-      frequencia:
-          Frequencia.porPeriodo(vezes: 1, unidade: UnidadePeriodo.mes),
-      valorAlvo: 12,
-      progresso: 7,
-    ),
-    Meta(
-      titulo: 'Aprender Stairway to Heaven',
-      hobby: hobbiesMock.firstWhere((h) => h.id == 'violao'),
-      tipo: TipoMeta.qualitativa,
-      frequencia:
-          Frequencia.porPeriodo(vezes: 3, unidade: UnidadePeriodo.semana),
-      checks: const [
-        EstadoCheck.concluido,
-        EstadoCheck.concluido,
-        EstadoCheck.vazio,
-      ],
-    ),
-    Meta(
-      titulo: 'Alcançar Diamond no Valorant',
-      hobby: hobbiesMock.firstWhere((h) => h.id == 'jogos'),
-      tipo: TipoMeta.qualitativa,
-      frequencia: Frequencia.diasSemana({2, 4, 6}),
-      checks: const [
-        EstadoCheck.concluido,
-        EstadoCheck.falhado,
-        EstadoCheck.vazio,
-      ],
-    ),
-  ];
+  final _auth = FirebaseAuth.instance;
+  final _db = FirebaseFirestore.instance;
 
-  List<Meta> get metasFiltradas {
+  // E-mail do usuário logado: é o campo que separa as metas de cada um,
+  // igual a Home faz com os hobbies.
+  String get _email => _auth.currentUser?.email ?? '';
+
+  // "Atalho" para a coleção de metas no Firestore.
+  CollectionReference<Map<String, dynamic>> get _metasRef =>
+      _db.collection('metas');
+
+  // Leitura em tempo real: só as metas do usuário logado. O StreamBuilder no
+  // build assina essa stream e redesenha a tela sozinho a cada mudança no banco.
+  Stream<QuerySnapshot<Map<String, dynamic>>> get _streamMetas =>
+      _metasRef.where('criado_por', isEqualTo: _email).snapshots();
+
+  // ----- Cálculos derivados da lista que chega da stream -----
+
+  List<Meta> _aplicarFiltro(List<Meta> metas) {
     switch (filtro) {
       case FiltroMeta.todas:
         return metas;
@@ -74,8 +61,15 @@ class _TelaMetasState extends State<TelaMetas> {
     }
   }
 
-  int get metasAtivas =>
+  int _contarAtivas(List<Meta> metas) =>
       metas.where((m) => m.status != StatusMeta.pausada).length;
+
+  Meta? _maisFrequente(List<Meta> metas) {
+    if (metas.isEmpty) return null;
+    return metas.reduce(
+      (a, b) => a.pontuacaoProgresso >= b.pontuacaoProgresso ? a : b,
+    );
+  }
 
   Future<void> abrirNovaMeta({Meta? metaParaEditar}) async {
     final resultado = await Navigator.push<Meta>(
@@ -87,23 +81,29 @@ class _TelaMetasState extends State<TelaMetas> {
 
     if (resultado == null) return;
 
-    setState(() {
-      if (metaParaEditar != null) {
-        final i = metas.indexOf(metaParaEditar);
-        if (i != -1) metas[i] = resultado;
-      } else {
-        metas.add(resultado);
-      }
-    });
+    // Edição: atualiza o documento existente (pelo id). Criação: novo
+    // documento, com a data de criação. A stream reflete a mudança sozinha,
+    // então nem precisamos de setState aqui.
+    if (metaParaEditar?.id != null) {
+      await _metasRef.doc(metaParaEditar!.id).update(resultado.toMap(_email));
+    } else {
+      await _metasRef.add({
+        ...resultado.toMap(_email),
+        'criado_em': Timestamp.now(),
+      });
+    }
   }
 
-  void pausarMeta(Meta meta) {
-    setState(() {
-      meta.status = meta.status == StatusMeta.pausada
-          ? StatusMeta.emAndamento
-          : StatusMeta.pausada;
+  Future<void> pausarMeta(Meta meta) async {
+    final novoStatus = meta.status == StatusMeta.pausada
+        ? StatusMeta.emAndamento
+        : StatusMeta.pausada;
+    await _metasRef.doc(meta.id).update({
+      'status': novoStatus.name,
+      'ultima_atualizacao': Timestamp.now(),
     });
-    final txt = meta.status == StatusMeta.pausada
+    if (!mounted) return;
+    final txt = novoStatus == StatusMeta.pausada
         ? 'Meta "${meta.titulo}" pausada.'
         : 'Meta "${meta.titulo}" retomada.';
     ScaffoldMessenger.of(context).showSnackBar(
@@ -118,17 +118,16 @@ class _TelaMetasState extends State<TelaMetas> {
       builder: (_) => _DialogExcluir(nomeMeta: meta.titulo),
     );
 
-    if (confirmado == true) {
-      setState(() => metas.remove(meta));
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Meta "${meta.titulo}" excluída.'),
-            duration: const Duration(seconds: 1),
-          ),
-        );
-      }
-    }
+    if (confirmado != true) return;
+
+    await _metasRef.doc(meta.id).delete();
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Meta "${meta.titulo}" excluída.'),
+        duration: const Duration(seconds: 1),
+      ),
+    );
   }
 
   void avisoSemAcao(String nome) {
@@ -140,55 +139,51 @@ class _TelaMetasState extends State<TelaMetas> {
     );
   }
 
-  void ajustarProgresso(Meta meta, int delta) {
+  Future<void> ajustarProgresso(Meta meta, int delta) async {
     if (meta.tipo != TipoMeta.quantitativa) return;
-    setState(() {
-      final novo = (meta.progresso + delta).clamp(0, meta.valorAlvo);
-      meta.progresso = novo;
-
-      // Quantitativa conclui automaticamente ao bater o alvo.
-      meta.status = novo >= meta.valorAlvo && meta.valorAlvo > 0
-          ? StatusMeta.concluida
-          : StatusMeta.emAndamento;
+    final novo = (meta.progresso + delta).clamp(0, meta.valorAlvo);
+    // Quantitativa conclui automaticamente ao bater o alvo.
+    final novoStatus = novo >= meta.valorAlvo && meta.valorAlvo > 0
+        ? StatusMeta.concluida
+        : StatusMeta.emAndamento;
+    await _metasRef.doc(meta.id).update({
+      'progresso': novo,
+      'status': novoStatus.name,
+      'ultima_atualizacao': Timestamp.now(),
     });
   }
 
   // Cicla o estado do check no índice i: vazio → concluído → falhado → vazio.
-  void alternarCheck(Meta meta, int i) {
+  Future<void> alternarCheck(Meta meta, int i) async {
     if (i < 0 || i >= meta.checks.length) return;
-    setState(() {
-      final atual = meta.checks[i];
-      final proximo = switch (atual) {
-        EstadoCheck.vazio => EstadoCheck.concluido,
-        EstadoCheck.concluido => EstadoCheck.falhado,
-        EstadoCheck.falhado => EstadoCheck.vazio,
-      };
-      meta.checks[i] = proximo;
+    // Trabalha numa cópia e grava a lista inteira de volta no documento.
+    final novosChecks = List<EstadoCheck>.from(meta.checks);
+    novosChecks[i] = switch (novosChecks[i]) {
+      EstadoCheck.vazio => EstadoCheck.concluido,
+      EstadoCheck.concluido => EstadoCheck.falhado,
+      EstadoCheck.falhado => EstadoCheck.vazio,
+    };
 
-      // Conclui automaticamente se todos os checks estão como concluído.
-      final todosOk = meta.checks.isNotEmpty &&
-          meta.checks.every((c) => c == EstadoCheck.concluido);
-      meta.status =
-          todosOk ? StatusMeta.concluida : StatusMeta.emAndamento;
+    // Conclui automaticamente se todos os checks estão como concluído.
+    final todosOk =
+        novosChecks.isNotEmpty &&
+        novosChecks.every((c) => c == EstadoCheck.concluido);
+    final novoStatus = todosOk ? StatusMeta.concluida : StatusMeta.emAndamento;
+
+    await _metasRef.doc(meta.id).update({
+      'checks': novosChecks.map((c) => c.name).toList(),
+      'status': novoStatus.name,
+      'ultima_atualizacao': Timestamp.now(),
     });
   }
 
-  void adicionarMilestone(Meta meta) {
-    setState(() => meta.milestones.add(Milestone.novo()));
-  }
-
-  void removerMilestone(Meta meta, String id) {
-    setState(() => meta.milestones.removeWhere((m) => m.id == id));
-  }
-
-  void editarMilestone(Meta meta, String id, String novoTexto) {
-    final m = meta.milestones.firstWhere((m) => m.id == id);
-    m.texto = novoTexto;
-  }
-
   // Conclusão manual — usada por metas qualitativas via menu ⋮.
-  void concluirMeta(Meta meta) {
-    setState(() => meta.status = StatusMeta.concluida);
+  Future<void> concluirMeta(Meta meta) async {
+    await _metasRef.doc(meta.id).update({
+      'status': StatusMeta.concluida.name,
+      'ultima_atualizacao': Timestamp.now(),
+    });
+    if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text('Meta "${meta.titulo}" marcada como concluída.'),
@@ -197,172 +192,248 @@ class _TelaMetasState extends State<TelaMetas> {
     );
   }
 
-  Meta? get metaMaisFrequente {
-    if (metas.isEmpty) return null;
-    return metas.reduce(
-      (a, b) => a.pontuacaoProgresso >= b.pontuacaoProgresso ? a : b,
+  // Abre o diálogo de registrar progresso (quantitativa) e grava o resultado.
+  Future<void> abrirRegistrarProgresso(Meta meta) async {
+    final valor = await showDialog<int>(
+      context: context,
+      barrierColor: Colors.black.withOpacity(0.45),
+      builder: (_) => _DialogRegistrarProgresso(meta: meta),
+    );
+    if (valor == null || valor <= 0) return;
+    await registrarProgresso(meta, valor);
+  }
+
+  // Soma `valor` ao progresso, respeitando o reset por período: se o período
+  // do último registro já passou, recomeça do zero antes de somar.
+  Future<void> registrarProgresso(Meta meta, int valor) async {
+    if (meta.tipo != TipoMeta.quantitativa) return;
+    final agora = DateTime.now();
+    final inicioAtual = meta.inicioPeriodoAtual(agora);
+    final rolou =
+        meta.periodoInicio == null || meta.periodoInicio!.isBefore(inicioAtual);
+    final base = rolou ? 0 : meta.progresso;
+    final novo = (base + valor).clamp(0, meta.valorAlvo);
+
+    await _metasRef.doc(meta.id).update({
+      'progresso': novo,
+      'periodo_inicio': Timestamp.fromDate(
+        rolou ? inicioAtual : meta.periodoInicio!,
+      ),
+      'ultima_atualizacao': Timestamp.now(),
+    });
+
+    if (!mounted) return;
+    final falta = meta.valorAlvo - novo;
+    final msg = novo >= meta.valorAlvo
+        ? 'Meta "${meta.titulo}" concluída neste período! 🎉'
+        : 'Registrado! Progresso: $novo/${meta.valorAlvo} (faltam $falta).';
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(msg), duration: const Duration(seconds: 2)),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    final lista = metasFiltradas;
-
     return MobileFrame(
-      child: Scaffold(
-      backgroundColor: _bgOffWhite,
-      body: Stack(
-        children: [
-          const Positioned(
-            top: 0,
-            left: 0,
-            right: 0,
-            child: _MetasHeader(),
-          ),
+      // StreamBuilder: assina a coleção `metas` no Firestore e reconstrói a
+      // tela sempre que algo muda no banco (criar/editar/excluir/pausar...).
+      child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+        stream: _streamMetas,
+        builder: (context, snap) {
+          // Cada documento vira uma Meta via Meta.fromDoc.
+          final metas = (snap.data?.docs ?? []).map(Meta.fromDoc).toList();
+          final carregando = snap.connectionState == ConnectionState.waiting;
+          final lista = _aplicarFiltro(metas);
 
-          SafeArea(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.only(bottom: 110),
-              child: Center(
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 430),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const SizedBox(height: 12),
+          return Scaffold(
+            backgroundColor: _bgOffWhite,
+            body: Stack(
+              children: [
+                const Positioned(
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  child: _MetasHeader(),
+                ),
 
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 22),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.end,
+                SafeArea(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.only(bottom: 110),
+                    child: Center(
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 430),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            _IconeCirculo(
-                              icone: Icons.notifications_outlined,
-                              onTap: () => Navigator.push(
-                                context,
-                                MaterialPageRoute(builder: (_) => TelaNotificacoes()),
+                            const SizedBox(height: 12),
+
+                            Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 24,
+                              ),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.end,
+                                children: [
+                                  _IconeCirculo(
+                                    icone: Icons.notifications_outlined,
+                                    onTap: () => Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (_) => TelaNotificacoes(),
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 10),
+                                  _IconeCirculo(
+                                    icone: Icons.person_outline,
+                                    onTap: () => Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (_) => const TelaPerfil(),
+                                      ),
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
-                            const SizedBox(width: 10),
-                            _IconeCirculo(
-                              icone: Icons.person_outline,
-                              onTap: () => Navigator.push(
-                                context,
-                                MaterialPageRoute(builder: (_) => const TelaPerfil()),
+
+                            const SizedBox(height: 64),
+
+                            const Padding(
+                              padding: EdgeInsets.symmetric(horizontal: 24),
+                              child: Text(
+                                'Metas',
+                                style: TextStyle(
+                                  fontSize: 24,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.black,
+                                ),
                               ),
                             ),
+                            const SizedBox(height: 4),
+                            const Padding(
+                              padding: EdgeInsets.symmetric(horizontal: 24),
+                              child: Text(
+                                'Acompanhe sua evolução e mantenha a constância',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  color: _grayText,
+                                ),
+                              ),
+                            ),
+
+                            const SizedBox(height: 14),
+
+                            Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 24,
+                              ),
+                              child: _PainelEstatisticas(
+                                ativas: _contarAtivas(metas),
+                                maisFrequente: _maisFrequente(metas),
+                              ),
+                            ),
+
+                            const SizedBox(height: 16),
+
+                            Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 24,
+                              ),
+                              child: _AbasFiltro(
+                                filtroSelecionado: filtro,
+                                onSelecionar: (f) => setState(() => filtro = f),
+                              ),
+                            ),
+
+                            const SizedBox(height: 14),
+
+                            if (carregando)
+                              const Padding(
+                                padding: EdgeInsets.symmetric(vertical: 40),
+                                child: Center(
+                                  child: CircularProgressIndicator(),
+                                ),
+                              )
+                            else if (lista.isEmpty)
+                              const Padding(
+                                padding: EdgeInsets.symmetric(
+                                  horizontal: 24,
+                                  vertical: 30,
+                                ),
+                                child: Center(
+                                  child: Text(
+                                    'Nenhuma meta nessa visualização.',
+                                    style: TextStyle(
+                                      color: _grayText,
+                                      fontSize: 13,
+                                    ),
+                                  ),
+                                ),
+                              )
+                            else
+                              Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 24,
+                                ),
+                                child: Column(
+                                  children: [
+                                    for (final m in lista) ...[
+                                      _CardMeta(
+                                        meta: m,
+                                        desabilitado:
+                                            m.status == StatusMeta.pausada,
+                                        onEditar: () =>
+                                            abrirNovaMeta(metaParaEditar: m),
+                                        onExcluir: () => confirmarExclusao(m),
+                                        onPausar: () => pausarMeta(m),
+                                        onRegistrar:
+                                            m.tipo == TipoMeta.quantitativa
+                                            ? () => abrirRegistrarProgresso(m)
+                                            : null,
+                                        onCheckTap: (i) => alternarCheck(m, i),
+                                      ),
+                                      const SizedBox(height: 12),
+                                    ],
+                                  ],
+                                ),
+                              ),
+
+                            const SizedBox(height: 6),
                           ],
                         ),
                       ),
-
-                      const SizedBox(height: 36),
-
-                      const Padding(
-                        padding: EdgeInsets.symmetric(horizontal: 22),
-                        child: Text(
-                          'Metas',
-                          style: TextStyle(
-                            fontSize: 26,
-                            fontWeight: FontWeight.w700,
-                            color: Colors.black,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      const Padding(
-                        padding: EdgeInsets.symmetric(horizontal: 22),
-                        child: Text(
-                          'Acompanhe sua evolução e mantenha a constância',
-                          style: TextStyle(fontSize: 13, color: _grayText),
-                        ),
-                      ),
-
-                      const SizedBox(height: 14),
-
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 22),
-                        child: _PainelEstatisticas(
-                          ativas: metasAtivas,
-                          maisFrequente: metaMaisFrequente,
-                        ),
-                      ),
-
-                      const SizedBox(height: 16),
-
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 22),
-                        child: _AbasFiltro(
-                          filtroSelecionado: filtro,
-                          onSelecionar: (f) => setState(() => filtro = f),
-                        ),
-                      ),
-
-                      const SizedBox(height: 14),
-
-                      if (lista.isEmpty)
-                        const Padding(
-                          padding: EdgeInsets.symmetric(
-                            horizontal: 22,
-                            vertical: 30,
-                          ),
-                          child: Center(
-                            child: Text(
-                              'Nenhuma meta nessa visualização.',
-                              style: TextStyle(color: _grayText, fontSize: 13),
-                            ),
-                          ),
-                        )
-                      else
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 22),
-                          child: Column(
-                            children: [
-                              for (final m in lista) ...[
-                                _CardMeta(
-                                  meta: m,
-                                  desabilitado: m.status == StatusMeta.pausada,
-                                  onEditar: () =>
-                                      abrirNovaMeta(metaParaEditar: m),
-                                  onExcluir: () => confirmarExclusao(m),
-                                  onPausar: () => pausarMeta(m),
-                                  onCheckTap: (i) => alternarCheck(m, i),
-                                ),
-                                const SizedBox(height: 12),
-                              ],
-                            ],
-                          ),
-                        ),
-
-                      const SizedBox(height: 6),
-                    ],
+                    ),
                   ),
                 ),
+
+                // Botão flutuante no canto inferior direito (acima da bottom bar),
+                // posicionado absoluto para não descer junto da lista.
+                Positioned(
+                  right: 18,
+                  bottom: 16,
+                  child: _BotaoNovaMeta(onTap: () => abrirNovaMeta()),
+                ),
+              ],
+            ),
+
+            bottomNavigationBar: _MetasBottomBar(
+              onHomeTap: () => Navigator.pop(context),
+              onCategoriasTap: () => Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(builder: (_) => const TelaCategorias()),
+              ),
+              onInsightsTap: () => Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(builder: (_) => const TelaInsights()),
+              ),
+              onAddTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const CriarHobby()),
               ),
             ),
-          ),
-
-          // Botão flutuante no canto inferior direito (acima da bottom bar),
-          // posicionado absoluto para não descer junto da lista.
-          Positioned(
-            right: 18,
-            bottom: 16,
-            child: _BotaoNovaMeta(onTap: () => abrirNovaMeta()),
-          ),
-        ],
-      ),
-
-      bottomNavigationBar: _MetasBottomBar(
-        onHomeTap: () => Navigator.pop(context),
-        onCategoriasTap: () => Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => const TelaCategorias()),
-        ),
-        onInsightsTap: () => Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => const TelaInsights()),
-        ),
-        onAddTap: () => abrirNovaMeta(),
-      ),
+          );
+        },
       ),
     );
   }
@@ -397,48 +468,47 @@ class _MetasHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return CustomPaint(
-      size: const Size(double.infinity, 160),
-      painter: _MetasHeaderPainter(),
+    // Mesmo header em onda multicolor da TelaCategorias (HomeBackground):
+    // uma faixa com SweepGradient roxo→laranja→roxo recortada pela HomeClipper,
+    // deixando só a tira colorida em formato de onda no topo.
+    return SizedBox(
+      height: 300,
+      width: double.infinity,
+      child: Stack(
+        children: [
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            child: Container(
+              height: 200,
+              decoration: const BoxDecoration(
+                gradient: SweepGradient(
+                  center: Alignment.topCenter,
+                  transform: GradientRotation(2.1),
+                  colors: [roxo, laranja, roxo],
+                  stops: [0.25, 0.63, 0.2],
+                ),
+              ),
+            ),
+          ),
+          Positioned.fill(
+            child: Align(
+              alignment: Alignment.topLeft,
+              child: ClipPath(
+                clipper: HomeClipper(),
+                child: Container(
+                  width: double.infinity,
+                  height: 300,
+                  color: _bgOffWhite,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
-}
-
-class _MetasHeaderPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final rect = Rect.fromLTWH(0, 0, size.width, size.height);
-
-    final paint = Paint()
-      ..shader = const LinearGradient(
-        colors: [_purple, _orange],
-        begin: Alignment.topLeft,
-        end: Alignment.topRight,
-      ).createShader(rect);
-
-    final path = Path();
-    path.lineTo(0, size.height * 0.55);
-
-    path.cubicTo(
-      size.width * 0.22, size.height * 0.45,
-      size.width * 0.40, size.height * 0.85,
-      size.width * 0.55, size.height * 0.82,
-    );
-
-    path.cubicTo(
-      size.width * 0.72, size.height * 0.78,
-      size.width * 0.86, size.height * 0.55,
-      size.width, size.height * 0.60,
-    );
-
-    path.lineTo(size.width, 0);
-    path.close();
-
-    canvas.drawPath(path, paint);
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
 class _PainelEstatisticas extends StatelessWidget {
@@ -452,9 +522,7 @@ class _PainelEstatisticas extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final destaque = maisFrequente == null
-        ? '—'
-        : '${maisFrequente!.emoji} ${maisFrequente!.hobby.nome}';
+    final mf = maisFrequente;
 
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 12),
@@ -472,16 +540,13 @@ class _PainelEstatisticas extends StatelessWidget {
       child: Row(
         children: [
           Expanded(
-            child: _ItemEstatistica(
-              titulo: 'Metas ativas',
-              valor: '$ativas',
-            ),
+            child: _ItemEstatistica(titulo: 'Metas ativas', valor: '$ativas'),
           ),
           Container(width: 1, height: 38, color: const Color(0xFFE6E6E6)),
           Expanded(
             child: _ItemEstatistica(
               titulo: 'Mais frequente do mês',
-              valor: destaque,
+              valor: mf == null ? '—' : '${mf.emoji} ${mf.hobby.nome}',
             ),
           ),
         ],
@@ -500,13 +565,13 @@ class _ItemEstatistica extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        Text(
-          titulo,
-          style: const TextStyle(fontSize: 12, color: _grayText),
-        ),
+        Text(titulo, style: const TextStyle(fontSize: 12, color: _grayText)),
         const SizedBox(height: 2),
         Text(
           valor,
+          textAlign: TextAlign.center,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
           style: const TextStyle(
             fontSize: 20,
             fontWeight: FontWeight.w700,
@@ -594,6 +659,7 @@ class _CardMeta extends StatelessWidget {
   final VoidCallback onEditar;
   final VoidCallback onExcluir;
   final VoidCallback onPausar;
+  final VoidCallback? onRegistrar;
   final ValueChanged<int> onCheckTap;
 
   const _CardMeta({
@@ -602,6 +668,7 @@ class _CardMeta extends StatelessWidget {
     required this.onEditar,
     required this.onExcluir,
     required this.onPausar,
+    required this.onRegistrar,
     required this.onCheckTap,
   });
 
@@ -671,6 +738,7 @@ class _CardMeta extends StatelessWidget {
               onEditar: onEditar,
               onExcluir: onExcluir,
               onPausar: onPausar,
+              onRegistrar: onRegistrar,
             ),
           ],
         ),
@@ -686,18 +754,22 @@ class _ProgressoQuantitativo extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final atual = meta.progressoEfetivo;
+    final falta = (meta.valorAlvo - atual).clamp(0, meta.valorAlvo);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Progresso: ${meta.progresso}/${meta.valorAlvo}',
+          falta > 0
+              ? 'Progresso: $atual/${meta.valorAlvo} · faltam $falta'
+              : 'Progresso: $atual/${meta.valorAlvo} · concluído ✅',
           style: const TextStyle(fontSize: 11, color: _grayText),
         ),
         const SizedBox(height: 4),
         ClipRRect(
           borderRadius: BorderRadius.circular(20),
           child: LinearProgressIndicator(
-            value: meta.percentual,
+            value: meta.percentualEfetivo,
             minHeight: 6,
             backgroundColor: Colors.white.withOpacity(0.7),
             valueColor: AlwaysStoppedAnimation<Color>(meta.cor),
@@ -759,9 +831,7 @@ class _CaixaCheck extends StatelessWidget {
         borderRadius: BorderRadius.circular(4),
         border: Border.all(color: cor ?? Colors.white, width: 1),
       ),
-      child: icone == null
-          ? null
-          : Icon(icone, color: Colors.white, size: 16),
+      child: icone == null ? null : Icon(icone, color: Colors.white, size: 16),
     );
   }
 }
@@ -771,12 +841,15 @@ class _MenuMeta extends StatelessWidget {
   final VoidCallback onEditar;
   final VoidCallback onExcluir;
   final VoidCallback onPausar;
+  // Só vem preenchido para metas quantitativas; nulo esconde o item.
+  final VoidCallback? onRegistrar;
 
   const _MenuMeta({
     required this.metaPausada,
     required this.onEditar,
     required this.onExcluir,
     required this.onPausar,
+    required this.onRegistrar,
   });
 
   @override
@@ -787,6 +860,9 @@ class _MenuMeta extends StatelessWidget {
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       onSelected: (v) {
         switch (v) {
+          case 'registrar':
+            onRegistrar?.call();
+            break;
           case 'editar':
             onEditar();
             break;
@@ -799,6 +875,18 @@ class _MenuMeta extends StatelessWidget {
         }
       },
       itemBuilder: (_) => [
+        if (onRegistrar != null)
+          const PopupMenuItem(
+            value: 'registrar',
+            height: 36,
+            child: Row(
+              children: [
+                Icon(Icons.add_chart_outlined, size: 16, color: _grayText),
+                SizedBox(width: 8),
+                Text('Registrar progresso', style: TextStyle(fontSize: 13)),
+              ],
+            ),
+          ),
         const PopupMenuItem(
           value: 'editar',
           height: 36,
@@ -840,6 +928,148 @@ class _MenuMeta extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+// Diálogo de registrar progresso de uma meta quantitativa: o usuário digita
+// quanto fez agora (ex: páginas lidas) e devolvemos esse valor via Navigator.pop.
+class _DialogRegistrarProgresso extends StatefulWidget {
+  final Meta meta;
+
+  const _DialogRegistrarProgresso({required this.meta});
+
+  @override
+  State<_DialogRegistrarProgresso> createState() =>
+      _DialogRegistrarProgressoState();
+}
+
+class _DialogRegistrarProgressoState extends State<_DialogRegistrarProgresso> {
+  final _ctrl = TextEditingController();
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  void _confirmar() {
+    final valor = int.tryParse(_ctrl.text.trim()) ?? 0;
+    Navigator.pop(context, valor);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final meta = widget.meta;
+    final atual = meta.progressoEfetivo;
+    final falta = (meta.valorAlvo - atual).clamp(0, meta.valorAlvo);
+
+    return Dialog(
+      backgroundColor: Colors.white,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 22, 20, 18),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 56,
+              height: 56,
+              decoration: BoxDecoration(
+                color: _purple.withOpacity(0.12),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.add_chart_outlined,
+                color: _purple,
+                size: 30,
+              ),
+            ),
+            const SizedBox(height: 14),
+            const Text(
+              'Registrar progresso',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+                color: Colors.black,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              'Atual: $atual/${meta.valorAlvo}'
+              '${falta > 0 ? ' · faltam $falta' : ' · concluído'}',
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 12, color: _grayText),
+            ),
+            const SizedBox(height: 14),
+            TextField(
+              controller: _ctrl,
+              autofocus: true,
+              keyboardType: TextInputType.number,
+              textAlign: TextAlign.center,
+              onSubmitted: (_) => _confirmar(),
+              style: const TextStyle(fontSize: 15, color: Colors.black),
+              decoration: InputDecoration(
+                hintText: 'Quanto você fez agora?',
+                hintStyle: const TextStyle(fontSize: 13, color: _grayLight),
+                isDense: true,
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 10,
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: const BorderSide(color: Color(0xFFD9D9D9)),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: const BorderSide(color: _purple, width: 1.3),
+                ),
+              ),
+            ),
+            const SizedBox(height: 18),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () => Navigator.pop(context),
+                    style: OutlinedButton.styleFrom(
+                      side: const BorderSide(color: _grayLight),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      padding: const EdgeInsets.symmetric(vertical: 10),
+                    ),
+                    child: const Text(
+                      'Cancelar',
+                      style: TextStyle(color: _grayText, fontSize: 13),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: _confirmar,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: _purple,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      padding: const EdgeInsets.symmetric(vertical: 10),
+                      elevation: 0,
+                    ),
+                    child: const Text(
+                      'Registrar',
+                      style: TextStyle(fontSize: 13),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
