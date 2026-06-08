@@ -113,7 +113,7 @@ class _CriarHobbyState extends State<CriarHobby> {
           .collection('metas')
           .add({
             'meta_tipo': metaSelecionada,
-            'meta_valor': metaValorNumerico,
+            'meta_valor': int.tryParse(metaQuantidadeController.text) ?? 20,
             'repetir': repetirOpcao,
             'dias_semana': diasParaSalvar,
             'horario_lembrete':

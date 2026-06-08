@@ -1,13 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'auth_widgets.dart';
-import 'tela_categorias.dart';
-import 'tela_criar_hobby.dart';
-import 'tela_insights.dart';
-import 'tela_metas.dart';
-import 'tela_notificacoes.dart';
-import 'tela_perfil.dart' hide CustomBottomBar;
 
-// Constantes de Cores
 const Color corRoxoApp = Color(0xFF7B2CBF);
 const Color corLaranjaApp = Color(0xFFF77F00);
 const Color corTextoLabels = Color(0xFF2D2D2D);
@@ -15,8 +10,177 @@ const Color corTextoSub = Color(0xFF666666);
 const Color corFundoCampos = Color(0xFFFAF6F0);
 const Color corBordaCampos = Color(0xFFD6CFC7);
 
-class EditarHobby extends StatelessWidget {
-  const EditarHobby({super.key});
+class EditarHobby extends StatefulWidget {
+  final String hobbyId;
+  final Map<String, dynamic> dadosIniciaisHobby;
+  final Map<String, dynamic>? dadosIniciaisMeta;
+  final String? metaDocId;
+
+  const EditarHobby({
+    super.key,
+    required this.hobbyId,
+    required this.dadosIniciaisHobby,
+    this.dadosIniciaisMeta,
+    this.metaDocId,
+  });
+
+  @override
+  State<EditarHobby> createState() => _EditarHobbyState();
+}
+
+class _EditarHobbyState extends State<EditarHobby> {
+  late TextEditingController nomeController;
+  late TextEditingController metaQuantidadeController;
+  late TextEditingController emojiController;
+
+  late String metaSelecionada;
+  late bool repetirOpcao;
+  late bool mostrarNotificacao;
+  late TimeOfDay horarioLembrete;
+
+  final List<String> nomesDias = [
+    'Dom',
+    'Seg',
+    'Ter',
+    'Qua',
+    'Qui',
+    'Sex',
+    'Sab',
+  ];
+  late List<bool> diasSelecionados;
+
+  void handleInitialData() {
+    nomeController = TextEditingController(
+      text: widget.dadosIniciaisHobby['nome'] ?? '',
+    );
+    emojiController = TextEditingController(
+      text: widget.dadosIniciaisHobby['emoji'] ?? '📖',
+    );
+
+    final metaData = widget.dadosIniciaisMeta;
+    metaQuantidadeController = TextEditingController(
+      text: metaData?['meta_valor']?.toString() ?? '20',
+    );
+
+    String metaDoBanco = metaData?['meta_tipo'] ?? '';
+
+    const opcoesValidas = ['Minutos', 'Horas', 'Páginas', 'Vezes'];
+
+    if (opcoesValidas.contains(metaDoBanco)) {
+      metaSelecionada = metaDoBanco;
+    } else {
+      metaSelecionada = 'Minutos';
+    }
+
+    repetirOpcao = metaData?['repetir'] ?? true;
+    mostrarNotificacao = metaData?['mostrar_notificacao'] ?? true;
+
+    String horarioString = metaData?['horario_lembrete'] ?? "19:30";
+    try {
+      final partes = horarioString.split(':');
+      horarioLembrete = TimeOfDay(
+        hour: int.parse(partes[0]),
+        minute: int.parse(partes[1]),
+      );
+    } catch (_) {
+      horarioLembrete = const TimeOfDay(hour: 19, minute: 30);
+    }
+
+    List<dynamic> diasDoBanco = metaData?['dias_semana'] ?? [];
+    diasSelecionados = nomesDias
+        .map((dia) => diasDoBanco.contains(dia))
+        .toList();
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    handleInitialData();
+  }
+
+  @override
+  void dispose() {
+    nomeController.dispose();
+    metaQuantidadeController.dispose();
+    emojiController.dispose();
+    super.dispose();
+  }
+
+  Future<void> atualizarHobbyFirebase() async {
+    print('metaDocId: ${widget.metaDocId}');
+    if (nomeController.text.trim().isEmpty ||
+        emojiController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Erro!! Preencha todos os campos.")),
+      );
+      return;
+    }
+
+    final int valorNumerico =
+        int.tryParse(metaQuantidadeController.text.trim()) ?? 20;
+
+    List<String> diasParaSalvar = [];
+    for (int i = 0; i < diasSelecionados.length; i++) {
+      if (diasSelecionados[i]) {
+        diasParaSalvar.add(nomesDias[i]);
+      }
+    }
+
+    try {
+      final firestore = FirebaseFirestore.instance;
+
+      await firestore.collection('hobbies').doc(widget.hobbyId).update({
+        'nome': nomeController.text.trim(),
+        'emoji': emojiController.text.trim(),
+        'atualizadoEm': FieldValue.serverTimestamp(),
+      });
+
+      if (widget.metaDocId != null) {
+        await firestore
+            .collection('hobbies')
+            .doc(widget.hobbyId)
+            .collection('metas')
+            .doc(widget.metaDocId)
+            .update({
+              'meta_tipo': metaSelecionada,
+              'meta_valor': valorNumerico,
+              'repetir': repetirOpcao,
+              'dias_semana': nomesDias
+                  .asMap()
+                  .entries
+                  .where((entry) => diasSelecionados[entry.key])
+                  .map((entry) => entry.value)
+                  .toList(),
+              'horario_lembrete':
+                  '${horarioLembrete.hour.toString().padLeft(2, '0')}:${horarioLembrete.minute.toString().padLeft(2, '0')}',
+              'mostrar_notificacao': mostrarNotificacao,
+            });
+      }
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Hobby atualizado com sucesso! 🎉')),
+        );
+        Navigator.maybePop(context);
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Erro ao atualizar: $e')));
+    }
+  }
+
+  Future<void> selecionarHora(BuildContext context) async {
+    final TimeOfDay? obtida = await showTimePicker(
+      context: context,
+      initialTime: horarioLembrete,
+    );
+    if (obtida != null && obtida != horarioLembrete) {
+      setState(() {
+        horarioLembrete = obtida;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -24,17 +188,13 @@ class EditarHobby extends StatelessWidget {
       child: SafeArea(
         child: Stack(
           children: [
-            // --- 1. O CONTEÚDO DO FORMULÁRIO (SCROLLABLE) ---
             Positioned.fill(
               child: SingleChildScrollView(
-                padding: EdgeInsets
-                    .zero, // Padding zero aqui para permitir que a linha ocupe 100% da largura
+                padding: EdgeInsets.zero,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const SizedBox(height: 80),
-
-                    // --- BLOCO COM PADDING 24: SETA E TÍTULO ---
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 24),
                       child: Row(
@@ -62,22 +222,17 @@ class EditarHobby extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 30),
-
-                    // --- LINHA DIVISÓRIA (PEGA 100% DA LARGURA NATURALMENTE) ---
                     const Divider(
                       color: Colors.blueGrey,
                       thickness: 0.5,
                       height: 0.5,
                     ),
                     const SizedBox(height: 24),
-
-                    // --- BLOCO COM PADDING 24: RESTANTE DO FORMULÁRIO ---
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 24),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // --- BLOCO SUPERIOR: ÍCONE/EMOJI + CAMPO DE NOME ---
                           Row(
                             crossAxisAlignment: CrossAxisAlignment.center,
                             children: [
@@ -85,15 +240,13 @@ class EditarHobby extends StatelessWidget {
                                 width: 60,
                                 height: 60,
                                 decoration: const BoxDecoration(
-                                  color: Color(
-                                    0xFFC7EBC3,
-                                  ), // Verde claro do print
+                                  color: Color(0xFFC7EBC3),
                                   shape: BoxShape.circle,
                                 ),
                                 alignment: Alignment.center,
-                                child: const Text(
-                                  '📖',
-                                  style: TextStyle(fontSize: 28),
+                                child: Text(
+                                  emojiController.text,
+                                  style: const TextStyle(fontSize: 28),
                                 ),
                               ),
                               const SizedBox(width: 16),
@@ -102,7 +255,7 @@ class EditarHobby extends StatelessWidget {
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     const Text(
-                                      'Leitura',
+                                      'Nome do Hobby',
                                       style: TextStyle(
                                         fontWeight: FontWeight.bold,
                                         fontSize: 15,
@@ -110,23 +263,20 @@ class EditarHobby extends StatelessWidget {
                                       ),
                                     ),
                                     const SizedBox(height: 6),
-                                    _buildCustomTextField(hintText: 'Leitura'),
+                                    _buildCustomTextField(
+                                      controller: nomeController,
+                                      hintText: 'Ex: Leitura diária',
+                                    ),
                                   ],
                                 ),
                               ),
                             ],
                           ),
                           const SizedBox(height: 24),
-
-                          // --- CARD DE META DIÁRIA ---
                           _buildMetaDiariaCard(),
                           const SizedBox(height: 20),
-
-                          // --- CARD DE SELEÇÃO DE EMOJI ---
                           _buildEmojiCard(),
                           const SizedBox(height: 32),
-
-                          // --- BOTÃO DE SALVAR COM GRADIENTE ---
                           Center(
                             child: Container(
                               width: 230,
@@ -140,7 +290,7 @@ class EditarHobby extends StatelessWidget {
                                 borderRadius: BorderRadius.circular(25),
                               ),
                               child: ElevatedButton(
-                                onPressed: () => Navigator.maybePop(context),
+                                onPressed: atualizarHobbyFirebase,
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: Colors.transparent,
                                   shadowColor: Colors.transparent,
@@ -159,9 +309,7 @@ class EditarHobby extends StatelessWidget {
                               ),
                             ),
                           ),
-                          const SizedBox(
-                            height: 120,
-                          ), // Espaço da Bottom Bar do app
+                          const SizedBox(height: 120),
                         ],
                       ),
                     ),
@@ -169,53 +317,16 @@ class EditarHobby extends StatelessWidget {
                 ),
               ),
             ),
-
-            // --- 2. CONTROLE DOS ÍCONES DA DIREITA ---
             Positioned(
               top: 45,
               right: 20,
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  _buildHeaderCircleIcon(
-                    Icons.notifications,
-                    onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => TelaNotificacoes()),
-                    ),
-                  ),
+                  _buildHeaderCircleIcon(Icons.notifications),
                   const SizedBox(width: 10),
-                  _buildHeaderCircleIcon(
-                    Icons.person,
-                    onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => const TelaPerfil()),
-                    ),
-                  ),
+                  _buildHeaderCircleIcon(Icons.person),
                 ],
-              ),
-            ),
-
-            // --- 3. BARRA DE NAVEGAÇÃO INFERIOR ---
-            Positioned(
-              bottom: 0,
-              left: 0,
-              right: 0,
-              child: CustomBottomBar(
-                activeIndex: 0,
-                onHomeTap: () => Navigator.maybePop(context),
-                onMetasTap: () => Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute(builder: (_) => const TelaMetas()),
-                ),
-                onCategoriasTap: () => Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute(builder: (_) => const TelaCategorias()),
-                ),
-                onInsightsTap: () => Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute(builder: (_) => const TelaInsights()),
-                ),
               ),
             ),
           ],
@@ -224,24 +335,22 @@ class EditarHobby extends StatelessWidget {
     );
   }
 
-  // --- MÉTODOS AUXILIARES DE WIDGETS ---
-
-  Widget _buildHeaderCircleIcon(IconData icon, {VoidCallback? onTap}) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 42,
-        height: 42,
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          shape: BoxShape.circle,
-        ),
-        child: Icon(icon, color: Colors.grey[600], size: 24),
+  Widget _buildHeaderCircleIcon(IconData icon) {
+    return Container(
+      width: 42,
+      height: 42,
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        shape: BoxShape.circle,
       ),
+      child: Icon(icon, color: Colors.grey[600], size: 24),
     );
   }
 
-  Widget _buildCustomTextField({required String hintText}) {
+  Widget _buildCustomTextField({
+    required TextEditingController controller,
+    required String hintText,
+  }) {
     return Container(
       height: 44,
       decoration: BoxDecoration(
@@ -251,9 +360,14 @@ class EditarHobby extends StatelessWidget {
       ),
       padding: const EdgeInsets.symmetric(horizontal: 12),
       alignment: Alignment.centerLeft,
-      child: Text(
-        hintText,
+      child: TextField(
+        controller: controller,
         style: const TextStyle(color: Colors.black87, fontSize: 14),
+        decoration: InputDecoration(
+          hintText: hintText,
+          border: InputBorder.none,
+          isDense: true,
+        ),
       ),
     );
   }
@@ -284,15 +398,92 @@ class EditarHobby extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 12),
-          _buildDropdownSelector(),
-          const SizedBox(height: 14),
-          const Text(
-            'Repetir',
-            style: TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: 15,
-              color: corTextoLabels,
+
+          Container(
+            height: 44,
+            decoration: BoxDecoration(
+              color: const Color(0xFFECEFF1),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: corBordaCampos, width: 1),
             ),
+            child: Row(
+              children: [
+                Expanded(
+                  flex: 2,
+                  child: TextField(
+                    controller: metaQuantidadeController,
+                    keyboardType: TextInputType.number,
+                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(color: Colors.black87, fontSize: 14),
+                    decoration: const InputDecoration(
+                      hintText: '20',
+                      border: InputBorder.none,
+                      isDense: true,
+                      contentPadding: EdgeInsets.symmetric(horizontal: 4),
+                    ),
+                  ),
+                ),
+                Container(height: 24, width: 1, color: corBordaCampos),
+                Expanded(
+                  flex: 7,
+                  child: DropdownButtonHideUnderline(
+                    child: DropdownButton<String>(
+                      value: metaSelecionada,
+                      isExpanded: true,
+                      icon: Icon(
+                        Icons.keyboard_arrow_down_rounded,
+                        color: Colors.grey[600],
+                      ),
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      style: const TextStyle(
+                        color: Colors.black87,
+                        fontSize: 14,
+                      ),
+                      items: const [
+                        DropdownMenuItem(
+                          value: 'Minutos',
+                          child: Text('Minutos'),
+                        ),
+                        DropdownMenuItem(value: 'Horas', child: Text('Horas')),
+                        DropdownMenuItem(
+                          value: 'Páginas',
+                          child: Text('Páginas'),
+                        ),
+                        DropdownMenuItem(value: 'Vezes', child: Text('Vezes')),
+                      ],
+                      onChanged: (String? novoValor) {
+                        if (novoValor != null) {
+                          setState(() {
+                            metaSelecionada = novoValor;
+                          });
+                        }
+                      },
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 14),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                'Repetir',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 15,
+                  color: corTextoLabels,
+                ),
+              ),
+              Switch(
+                value: repetirOpcao,
+                onChanged: (v) => setState(() => repetirOpcao = v),
+                activeColor: corRoxoApp,
+              ),
+            ],
           ),
           const SizedBox(height: 8),
           _buildDaysOfWeek(),
@@ -306,18 +497,23 @@ class EditarHobby extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 8),
-          Row(
-            children: [
-              _buildTimeBox('00'),
-              const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 10),
-                child: Text(
-                  ':',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
+          GestureDetector(
+            onTap: () => selecionarHora(context),
+            child: Row(
+              children: [
+                _buildTimeBox(horarioLembrete.hour.toString().padLeft(2, '0')),
+                const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 10),
+                  child: Text(
+                    ':',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
+                  ),
                 ),
-              ),
-              _buildTimeBox('00'),
-            ],
+                _buildTimeBox(
+                  horarioLembrete.minute.toString().padLeft(2, '0'),
+                ),
+              ],
+            ),
           ),
           const SizedBox(height: 18),
           Row(
@@ -331,7 +527,11 @@ class EditarHobby extends StatelessWidget {
                   color: corTextoLabels,
                 ),
               ),
-              Switch(value: true, onChanged: (v) {}, activeColor: corRoxoApp),
+              Switch(
+                value: mostrarNotificacao,
+                onChanged: (v) => setState(() => mostrarNotificacao = v),
+                activeColor: corRoxoApp,
+              ),
             ],
           ),
         ],
@@ -365,63 +565,44 @@ class EditarHobby extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 12),
-          _buildCustomTextField(hintText: 'Toque para escolher'),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildDropdownSelector() {
-    return Container(
-      height: 44,
-      decoration: BoxDecoration(
-        color: const Color(0xFFECEFF1),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: corBordaCampos, width: 1),
-      ),
-      padding: const EdgeInsets.symmetric(horizontal: 12),
-      child: Row(
-        children: [
-          const Text(
-            '20',
-            style: TextStyle(fontSize: 14, color: Colors.black87),
+          _buildCustomTextField(
+            controller: emojiController,
+            hintText: 'Toque para escolher',
           ),
-          const SizedBox(width: 8),
-          const VerticalDivider(width: 1, thickness: 1, color: corBordaCampos),
-          const SizedBox(width: 8),
-          const Expanded(
-            child: Text(
-              'selecione uma opção',
-              style: TextStyle(fontSize: 14, color: corTextoSub),
-            ),
-          ),
-          Icon(Icons.keyboard_arrow_down_rounded, color: Colors.grey[600]),
         ],
       ),
     );
   }
 
   Widget _buildDaysOfWeek() {
-    final dias = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sab'];
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: dias.map((dia) {
-        return Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-          decoration: BoxDecoration(
-            color: corLaranjaApp,
-            borderRadius: BorderRadius.circular(6),
-          ),
-          child: Text(
-            dia,
-            style: const TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.bold,
-              fontSize: 12,
+      children: List.generate(nomesDias.length, (index) {
+        final dia = nomesDias[index];
+        final estaSelecionado = diasSelecionados[index];
+        return GestureDetector(
+          onTap: () {
+            setState(() {
+              diasSelecionados[index] = !diasSelecionados[index];
+            });
+          },
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            decoration: BoxDecoration(
+              color: estaSelecionado ? corLaranjaApp : Colors.grey[300],
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: Text(
+              dia,
+              style: TextStyle(
+                color: estaSelecionado ? Colors.white : Colors.black,
+                fontWeight: FontWeight.bold,
+                fontSize: 12,
+              ),
             ),
           ),
         );
-      }).toList(),
+      }),
     );
   }
 
