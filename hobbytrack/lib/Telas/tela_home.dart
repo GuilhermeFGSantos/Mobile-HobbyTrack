@@ -822,17 +822,63 @@ class _HobbiesScrollerState extends State<_HobbiesScroller> {
         child: ListView.separated(
           controller: _scrollCtrl,
           scrollDirection: Axis.horizontal,
-          // Espaço embaixo para a barra não encostar nos cards.
           padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
           itemCount: widget.docs.length,
           separatorBuilder: (context, index) => const SizedBox(width: 12),
           itemBuilder: (context, i) {
-            final d = widget.docs[i].data();
-            return _CardHobby(
-              id: widget.docs[i].id,
-              emoji: d['emoji'] as String? ?? '🎯',
-              nome: d['nome'] as String? ?? '',
-              onExcluir: () => widget.onExcluir(widget.docs[i].id),
+            final hobbyDoc = widget.docs[i];
+            final d = hobbyDoc.data() as Map<String, dynamic>;
+
+            return FutureBuilder<QuerySnapshot>(
+              future: hobbyDoc.reference.collection('metas').limit(1).get(),
+              builder: (context, metaSnapshot) {
+                if (!metaSnapshot.hasData) {
+                  return const SizedBox(
+                    width: 140,
+                    child: Center(
+                      child: CircularProgressIndicator(color: roxo),
+                    ),
+                  );
+                }
+
+                final docsMeta = metaSnapshot.data!.docs;
+
+                if (docsMeta.isEmpty) {
+                  return _CardHobby(
+                    id: hobbyDoc.id,
+                    metaDocId: '',
+                    emoji: d['emoji'] as String? ?? '🎯',
+                    nome: d['nome'] as String? ?? '',
+                    onExcluir: () => widget.onExcluir(hobbyDoc.id),
+                    metaTipo: 'Minutos',
+                    metaValor: 20,
+                    repetir: true,
+                    diasSemana: const [],
+                    horarioLembrete: "19:30",
+                    mostrarNotificacao: true,
+                  );
+                }
+
+                final metaDoc = docsMeta.first;
+                final m = metaDoc.data() as Map<String, dynamic>;
+
+                return _CardHobby(
+                  id: hobbyDoc.id,
+                  metaDocId: metaDoc.id,
+                  emoji: d['emoji'] as String? ?? '🎯',
+                  nome: d['nome'] as String? ?? '',
+                  onExcluir: () => widget.onExcluir(hobbyDoc.id),
+
+                  metaTipo: m['meta_tipo'] as String? ?? 'Minutos',
+                  metaValor: m['meta_valor'] as int? ?? 20,
+                  repetir: m['repetir'] as bool? ?? true,
+                  diasSemana: List<String>.from(
+                    m['dias_semana'] as List<dynamic>? ?? [],
+                  ),
+                  horarioLembrete: m['horario_lembrete'] as String? ?? "19:30",
+                  mostrarNotificacao: m['mostrar_notificacao'] as bool? ?? true,
+                );
+              },
             );
           },
         ),
@@ -883,12 +929,26 @@ class _CardHobby extends StatelessWidget {
   final String emoji;
   final String nome;
   final VoidCallback onExcluir;
+  final String metaTipo;
+  final int metaValor;
+  final bool repetir;
+  final List<String> diasSemana;
+  final String horarioLembrete;
+  final bool mostrarNotificacao;
+  final String metaDocId;
 
   const _CardHobby({
     required this.id,
     required this.emoji,
     required this.nome,
     required this.onExcluir,
+    required this.metaTipo,
+    required this.metaValor,
+    required this.repetir,
+    required this.diasSemana,
+    required this.horarioLembrete,
+    required this.mostrarNotificacao,
+    required this.metaDocId,
   });
 
   /// Menu de contexto com opções de editar e excluir o hobby.
@@ -910,7 +970,21 @@ class _CardHobby extends StatelessWidget {
                 Navigator.pop(context);
                 Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (_) => const EditarHobby()),
+                  MaterialPageRoute(
+                    builder: (_) => EditarHobby(
+                      hobbyId: id,
+                      dadosIniciaisHobby: {'nome': nome, 'emoji': emoji},
+                      dadosIniciaisMeta: {
+                        'meta_tipo': metaTipo,
+                        'meta_valor': metaValor,
+                        'repetir': repetir,
+                        'dias_semana': diasSemana,
+                        'horario_lembrete': horarioLembrete,
+                        'mostrar_notificacao': mostrarNotificacao,
+                      },
+                      metaDocId: metaDocId,
+                    ),
+                  ),
                 );
               },
             ),
