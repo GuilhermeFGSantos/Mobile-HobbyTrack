@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'tela_criar_hobby.dart';
 import 'tela_notificacoes.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class TelaAlterarSenha extends StatefulWidget {
   const TelaAlterarSenha({super.key});
@@ -10,21 +11,14 @@ class TelaAlterarSenha extends StatefulWidget {
 }
 
 class _TelaAlterarSenhaState extends State<TelaAlterarSenha> {
-  final TextEditingController senhaAtualController = TextEditingController(
-    text: '************',
-  );
-
-  final TextEditingController novaSenhaController = TextEditingController(
-    text: '***************',
-  );
-
-  final TextEditingController repetirSenhaController = TextEditingController(
-    text: '***************',
-  );
+  final TextEditingController senhaAtualController = TextEditingController();
+  final TextEditingController novaSenhaController = TextEditingController();
+  final TextEditingController repetirSenhaController = TextEditingController();
 
   bool ocultarSenhaAtual = true;
   bool ocultarNovaSenha = true;
   bool ocultarRepetirSenha = true;
+  bool carregando = false;
 
   static const Color backgroundColor = Color(0xFFFFF7F0);
   static const Color purple = Color(0xFF8738F2);
@@ -39,7 +33,7 @@ class _TelaAlterarSenhaState extends State<TelaAlterarSenha> {
     super.dispose();
   }
 
-  void atualizarSenha() {
+  Future<void> atualizarSenha() async {
     final senhaAtual = senhaAtualController.text.trim();
     final novaSenha = novaSenhaController.text.trim();
     final repetirSenha = repetirSenhaController.text.trim();
@@ -48,6 +42,16 @@ class _TelaAlterarSenhaState extends State<TelaAlterarSenha> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Preencha todos os campos.'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+      return;
+    }
+
+    if (novaSenha.length < 6) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('A nova senha precisa ter pelo menos 6 caracteres.'),
           duration: Duration(seconds: 2),
         ),
       );
@@ -64,16 +68,69 @@ class _TelaAlterarSenhaState extends State<TelaAlterarSenha> {
       return;
     }
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Senha atualizada com sucesso!'),
-        duration: Duration(seconds: 2),
-      ),
-    );
+    final usuario = FirebaseAuth.instance.currentUser;
 
-    // Futuramente aqui você vai chamar seu back-end.
-    // Exemplo:
-    // await usuarioService.atualizarSenha(senhaAtual, novaSenha);
+    if (usuario == null || usuario.email == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Usuário não autenticado. Faça login novamente.'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+      return;
+    }
+
+    setState(() {
+      carregando = true;
+    });
+
+    try {
+      final credencial = EmailAuthProvider.credential(
+        email: usuario.email!,
+        password: senhaAtual,
+      );
+
+      await usuario.reauthenticateWithCredential(credencial);
+
+      await usuario.updatePassword(novaSenha);
+
+      senhaAtualController.clear();
+      novaSenhaController.clear();
+      repetirSenhaController.clear();
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Senha atualizada com sucesso!'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+
+      Navigator.pop(context);
+    } on FirebaseAuthException catch (e) {
+      String mensagem = 'Não foi possível atualizar a senha.';
+
+      if (e.code == 'wrong-password' || e.code == 'invalid-credential') {
+        mensagem = 'Senha atual incorreta.';
+      } else if (e.code == 'weak-password') {
+        mensagem = 'A nova senha é muito fraca.';
+      } else if (e.code == 'requires-recent-login') {
+        mensagem = 'Por segurança, faça login novamente para alterar a senha.';
+      }
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(mensagem), duration: const Duration(seconds: 2)),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          carregando = false;
+        });
+      }
+    }
   }
 
   void botaoMenuSemAcao(String nomeTela) {
@@ -101,21 +158,14 @@ class _TelaAlterarSenhaState extends State<TelaAlterarSenha> {
       resizeToAvoidBottomInset: true,
       body: Stack(
         children: [
-          const Positioned(
-            top: 0,
-            left: 0,
-            right: 0,
-            child: ProfileHeader(),
-          ),
+          const Positioned(top: 0, left: 0, right: 0, child: ProfileHeader()),
 
           SafeArea(
             child: SingleChildScrollView(
               padding: const EdgeInsets.only(bottom: 90),
               child: Center(
                 child: ConstrainedBox(
-                  constraints: const BoxConstraints(
-                    maxWidth: 430,
-                  ),
+                  constraints: const BoxConstraints(maxWidth: 430),
                   child: Column(
                     children: [
                       const SizedBox(height: 22),
@@ -143,7 +193,9 @@ class _TelaAlterarSenhaState extends State<TelaAlterarSenha> {
                             InkWell(
                               onTap: () => Navigator.push(
                                 context,
-                                MaterialPageRoute(builder: (_) => TelaNotificacoes()),
+                                MaterialPageRoute(
+                                  builder: (_) => TelaNotificacoes(),
+                                ),
                               ),
                               borderRadius: BorderRadius.circular(50),
                               child: Container(
@@ -285,11 +337,12 @@ class _TelaAlterarSenhaState extends State<TelaAlterarSenha> {
                         width: 284,
                         height: 41,
                         child: ElevatedButton(
-                          onPressed: atualizarSenha,
+                          onPressed: carregando ? null : atualizarSenha,
                           style: ElevatedButton.styleFrom(
                             padding: EdgeInsets.zero,
                             backgroundColor: Colors.transparent,
                             shadowColor: Colors.transparent,
+                            disabledBackgroundColor: Colors.transparent,
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(25),
                             ),
@@ -298,24 +351,30 @@ class _TelaAlterarSenhaState extends State<TelaAlterarSenha> {
                             decoration: BoxDecoration(
                               borderRadius: BorderRadius.circular(25),
                               gradient: const LinearGradient(
-                                colors: [
-                                  orange,
-                                  purple,
-                                ],
+                                colors: [orange, purple],
                                 begin: Alignment.centerLeft,
                                 end: Alignment.centerRight,
                               ),
                             ),
                             child: Container(
                               alignment: Alignment.center,
-                              child: const Text(
-                                'Atualizar senha',
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 19,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
+                              child: carregando
+                                  ? const SizedBox(
+                                      width: 22,
+                                      height: 22,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        color: Colors.white,
+                                      ),
+                                    )
+                                  : const Text(
+                                      'Atualizar senha',
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 19,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
                             ),
                           ),
                         ),
@@ -363,10 +422,7 @@ class CampoSenhaPerfil extends StatelessWidget {
       controller: controller,
       obscureText: obscureText,
       decoration: InputDecoration(
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 10,
-          vertical: 8,
-        ),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
         isDense: true,
         filled: true,
         fillColor: Colors.white,
@@ -384,23 +440,14 @@ class CampoSenhaPerfil extends StatelessWidget {
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
-          borderSide: const BorderSide(
-            color: Color(0xFF9F9F9F),
-            width: 1,
-          ),
+          borderSide: const BorderSide(color: Color(0xFF9F9F9F), width: 1),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
-          borderSide: const BorderSide(
-            color: purple,
-            width: 1.4,
-          ),
+          borderSide: const BorderSide(color: purple, width: 1.4),
         ),
       ),
-      style: const TextStyle(
-        fontSize: 12,
-        color: Colors.black,
-      ),
+      style: const TextStyle(fontSize: 12, color: Colors.black),
     );
   }
 }
@@ -424,10 +471,7 @@ class HeaderPainter extends CustomPainter {
 
     final Paint paint = Paint()
       ..shader = const LinearGradient(
-        colors: [
-          Color(0xFF8738F2),
-          Color(0xFFFF7A00),
-        ],
+        colors: [Color(0xFF8738F2), Color(0xFFFF7A00)],
         begin: Alignment.topLeft,
         end: Alignment.topRight,
       ).createShader(rect);
@@ -543,19 +587,12 @@ class CustomBottomBar extends StatelessWidget {
                 decoration: const BoxDecoration(
                   shape: BoxShape.circle,
                   gradient: LinearGradient(
-                    colors: [
-                      purple,
-                      orange,
-                    ],
+                    colors: [purple, orange],
                     begin: Alignment.centerLeft,
                     end: Alignment.centerRight,
                   ),
                 ),
-                child: const Icon(
-                  Icons.add,
-                  color: Colors.white,
-                  size: 38,
-                ),
+                child: const Icon(Icons.add, color: Colors.white, size: 38),
               ),
             ),
           ),
@@ -592,11 +629,7 @@ class _BottomItem extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              icon,
-              color: color,
-              size: 24,
-            ),
+            Icon(icon, color: color, size: 24),
             const SizedBox(height: 2),
             Text(
               label,
