@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'tela_criar_hobby.dart';
 import 'tela_notificacoes.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class TelaAlterarSenha extends StatefulWidget {
   const TelaAlterarSenha({super.key});
@@ -19,6 +20,34 @@ class _TelaAlterarSenhaState extends State<TelaAlterarSenha> {
   bool ocultarNovaSenha = true;
   bool ocultarRepetirSenha = true;
   bool carregando = false;
+
+  String nomeUsuario = 'Carregando...';
+  @override
+  void initState() {
+    super.initState();
+    carregarNomeUsuario();
+  }
+
+  Future<void> carregarNomeUsuario() async {
+    final usuario = FirebaseAuth.instance.currentUser;
+
+    if (usuario == null) {
+      return;
+    }
+
+    final doc = await FirebaseFirestore.instance
+        .collection('usuarios')
+        .doc(usuario.uid)
+        .get();
+
+    final dados = doc.data();
+
+    if (!mounted) return;
+
+    setState(() {
+      nomeUsuario = dados?['nome'] ?? usuario.displayName ?? 'Usuário';
+    });
+  }
 
   static const Color backgroundColor = Color(0xFFFFF7F0);
   static const Color purple = Color(0xFF8738F2);
@@ -234,9 +263,9 @@ class _TelaAlterarSenhaState extends State<TelaAlterarSenha> {
 
                       const SizedBox(height: 14),
 
-                      const Text(
-                        'Ana lima',
-                        style: TextStyle(
+                      Text(
+                        nomeUsuario,
+                        style: const TextStyle(
                           fontSize: 23,
                           fontWeight: FontWeight.w700,
                           color: Colors.black,
