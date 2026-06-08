@@ -192,6 +192,46 @@ class _TelaMetasState extends State<TelaMetas> {
     );
   }
 
+  // Abre o diálogo de registrar progresso (quantitativa) e grava o resultado.
+  Future<void> abrirRegistrarProgresso(Meta meta) async {
+    final valor = await showDialog<int>(
+      context: context,
+      barrierColor: Colors.black.withOpacity(0.45),
+      builder: (_) => _DialogRegistrarProgresso(meta: meta),
+    );
+    if (valor == null || valor <= 0) return;
+    await registrarProgresso(meta, valor);
+  }
+
+  // Soma `valor` ao progresso, respeitando o reset por período: se o período
+  // do último registro já passou, recomeça do zero antes de somar.
+  Future<void> registrarProgresso(Meta meta, int valor) async {
+    if (meta.tipo != TipoMeta.quantitativa) return;
+    final agora = DateTime.now();
+    final inicioAtual = meta.inicioPeriodoAtual(agora);
+    final rolou =
+        meta.periodoInicio == null || meta.periodoInicio!.isBefore(inicioAtual);
+    final base = rolou ? 0 : meta.progresso;
+    final novo = (base + valor).clamp(0, meta.valorAlvo);
+
+    await _metasRef.doc(meta.id).update({
+      'progresso': novo,
+      'periodo_inicio': Timestamp.fromDate(
+        rolou ? inicioAtual : meta.periodoInicio!,
+      ),
+      'ultima_atualizacao': Timestamp.now(),
+    });
+
+    if (!mounted) return;
+    final falta = meta.valorAlvo - novo;
+    final msg = novo >= meta.valorAlvo
+        ? 'Meta "${meta.titulo}" concluída neste período! 🎉'
+        : 'Registrado! Progresso: $novo/${meta.valorAlvo} (faltam $falta).';
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(msg), duration: const Duration(seconds: 2)),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return MobileFrame(
@@ -347,6 +387,10 @@ class _TelaMetasState extends State<TelaMetas> {
                                             abrirNovaMeta(metaParaEditar: m),
                                         onExcluir: () => confirmarExclusao(m),
                                         onPausar: () => pausarMeta(m),
+                                        onRegistrar:
+                                            m.tipo == TipoMeta.quantitativa
+                                            ? () => abrirRegistrarProgresso(m)
+                                            : null,
                                         onCheckTap: (i) => alternarCheck(m, i),
                                       ),
                                       const SizedBox(height: 12),
@@ -615,6 +659,7 @@ class _CardMeta extends StatelessWidget {
   final VoidCallback onEditar;
   final VoidCallback onExcluir;
   final VoidCallback onPausar;
+  final VoidCallback? onRegistrar;
   final ValueChanged<int> onCheckTap;
 
   const _CardMeta({
@@ -623,6 +668,7 @@ class _CardMeta extends StatelessWidget {
     required this.onEditar,
     required this.onExcluir,
     required this.onPausar,
+    required this.onRegistrar,
     required this.onCheckTap,
   });
 
@@ -692,6 +738,7 @@ class _CardMeta extends StatelessWidget {
               onEditar: onEditar,
               onExcluir: onExcluir,
               onPausar: onPausar,
+              onRegistrar: onRegistrar,
             ),
           ],
         ),
@@ -707,18 +754,22 @@ class _ProgressoQuantitativo extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final atual = meta.progressoEfetivo;
+    final falta = (meta.valorAlvo - atual).clamp(0, meta.valorAlvo);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Progresso: ${meta.progresso}/${meta.valorAlvo}',
+          falta > 0
+              ? 'Progresso: $atual/${meta.valorAlvo} · faltam $falta'
+              : 'Progresso: $atual/${meta.valorAlvo} · concluído ✅',
           style: const TextStyle(fontSize: 11, color: _grayText),
         ),
         const SizedBox(height: 4),
         ClipRRect(
           borderRadius: BorderRadius.circular(20),
           child: LinearProgressIndicator(
-            value: meta.percentual,
+            value: meta.percentualEfetivo,
             minHeight: 6,
             backgroundColor: Colors.white.withOpacity(0.7),
             valueColor: AlwaysStoppedAnimation<Color>(meta.cor),
@@ -790,12 +841,15 @@ class _MenuMeta extends StatelessWidget {
   final VoidCallback onEditar;
   final VoidCallback onExcluir;
   final VoidCallback onPausar;
+  // Só vem preenchido para metas quantitativas; nulo esconde o item.
+  final VoidCallback? onRegistrar;
 
   const _MenuMeta({
     required this.metaPausada,
     required this.onEditar,
     required this.onExcluir,
     required this.onPausar,
+    required this.onRegistrar,
   });
 
   @override
@@ -806,6 +860,9 @@ class _MenuMeta extends StatelessWidget {
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       onSelected: (v) {
         switch (v) {
+          case 'registrar':
+            onRegistrar?.call();
+            break;
           case 'editar':
             onEditar();
             break;
@@ -818,6 +875,18 @@ class _MenuMeta extends StatelessWidget {
         }
       },
       itemBuilder: (_) => [
+        if (onRegistrar != null)
+          const PopupMenuItem(
+            value: 'registrar',
+            height: 36,
+            child: Row(
+              children: [
+                Icon(Icons.add_chart_outlined, size: 16, color: _grayText),
+                SizedBox(width: 8),
+                Text('Registrar progresso', style: TextStyle(fontSize: 13)),
+              ],
+            ),
+          ),
         const PopupMenuItem(
           value: 'editar',
           height: 36,
@@ -859,6 +928,148 @@ class _MenuMeta extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+// Diálogo de registrar progresso de uma meta quantitativa: o usuário digita
+// quanto fez agora (ex: páginas lidas) e devolvemos esse valor via Navigator.pop.
+class _DialogRegistrarProgresso extends StatefulWidget {
+  final Meta meta;
+
+  const _DialogRegistrarProgresso({required this.meta});
+
+  @override
+  State<_DialogRegistrarProgresso> createState() =>
+      _DialogRegistrarProgressoState();
+}
+
+class _DialogRegistrarProgressoState extends State<_DialogRegistrarProgresso> {
+  final _ctrl = TextEditingController();
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  void _confirmar() {
+    final valor = int.tryParse(_ctrl.text.trim()) ?? 0;
+    Navigator.pop(context, valor);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final meta = widget.meta;
+    final atual = meta.progressoEfetivo;
+    final falta = (meta.valorAlvo - atual).clamp(0, meta.valorAlvo);
+
+    return Dialog(
+      backgroundColor: Colors.white,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 22, 20, 18),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 56,
+              height: 56,
+              decoration: BoxDecoration(
+                color: _purple.withOpacity(0.12),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.add_chart_outlined,
+                color: _purple,
+                size: 30,
+              ),
+            ),
+            const SizedBox(height: 14),
+            const Text(
+              'Registrar progresso',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+                color: Colors.black,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              'Atual: $atual/${meta.valorAlvo}'
+              '${falta > 0 ? ' · faltam $falta' : ' · concluído'}',
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 12, color: _grayText),
+            ),
+            const SizedBox(height: 14),
+            TextField(
+              controller: _ctrl,
+              autofocus: true,
+              keyboardType: TextInputType.number,
+              textAlign: TextAlign.center,
+              onSubmitted: (_) => _confirmar(),
+              style: const TextStyle(fontSize: 15, color: Colors.black),
+              decoration: InputDecoration(
+                hintText: 'Quanto você fez agora?',
+                hintStyle: const TextStyle(fontSize: 13, color: _grayLight),
+                isDense: true,
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 10,
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: const BorderSide(color: Color(0xFFD9D9D9)),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: const BorderSide(color: _purple, width: 1.3),
+                ),
+              ),
+            ),
+            const SizedBox(height: 18),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () => Navigator.pop(context),
+                    style: OutlinedButton.styleFrom(
+                      side: const BorderSide(color: _grayLight),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      padding: const EdgeInsets.symmetric(vertical: 10),
+                    ),
+                    child: const Text(
+                      'Cancelar',
+                      style: TextStyle(color: _grayText, fontSize: 13),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: _confirmar,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: _purple,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      padding: const EdgeInsets.symmetric(vertical: 10),
+                      elevation: 0,
+                    ),
+                    child: const Text(
+                      'Registrar',
+                      style: TextStyle(fontSize: 13),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

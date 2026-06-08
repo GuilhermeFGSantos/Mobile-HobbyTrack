@@ -66,17 +66,14 @@ class Frequencia {
   factory Frequencia.porPeriodo({
     required int vezes,
     required UnidadePeriodo unidade,
-  }) =>
-      Frequencia._(
-        tipo: TipoFrequencia.porPeriodo,
-        vezes: vezes,
-        unidade: unidade,
-      );
+  }) => Frequencia._(
+    tipo: TipoFrequencia.porPeriodo,
+    vezes: vezes,
+    unidade: unidade,
+  );
 
-  factory Frequencia.diasSemana(Set<int> dias) => Frequencia._(
-        tipo: TipoFrequencia.diasSemana,
-        dias: Set<int>.from(dias),
-      );
+  factory Frequencia.diasSemana(Set<int> dias) =>
+      Frequencia._(tipo: TipoFrequencia.diasSemana, dias: Set<int>.from(dias));
 
   // Reconstrói a frequência a partir do mapa aninhado salvo no documento.
   factory Frequencia.fromMap(Map<String, dynamic> map) {
@@ -87,9 +84,7 @@ class Frequencia {
     );
     if (tipo == TipoFrequencia.diasSemana) {
       final dias = (map['dias'] as List?) ?? const [];
-      return Frequencia.diasSemana(
-        dias.map((e) => (e as num).toInt()).toSet(),
-      );
+      return Frequencia.diasSemana(dias.map((e) => (e as num).toInt()).toSet());
     }
     return Frequencia.porPeriodo(
       vezes: (map['vezes'] as num?)?.toInt() ?? 1,
@@ -103,11 +98,11 @@ class Frequencia {
 
   // Objeto -> mapa, guardado como campo aninhado dentro do documento da meta.
   Map<String, dynamic> toMap() => {
-        'tipo': tipo.name,
-        'vezes': vezes,
-        'unidade': unidade.name,
-        'dias': (dias.toList()..sort()),
-      };
+    'tipo': tipo.name,
+    'vezes': vezes,
+    'unidade': unidade.name,
+    'dias': (dias.toList()..sort()),
+  };
 
   bool get valida =>
       tipo == TipoFrequencia.porPeriodo ? vezes > 0 : dias.isNotEmpty;
@@ -187,6 +182,11 @@ class Meta {
   StatusMeta status;
   List<EstadoCheck> checks; // só usado por qualitativa
 
+  // Início do período em que o `progresso` atual foi registrado (quantitativa).
+  // Serve de base para o reset por frequência: quando o período vira, o
+  // progresso passa a valer 0. Nulo até o primeiro registro de progresso.
+  final DateTime? periodoInicio;
+
   Meta({
     this.id,
     required this.titulo,
@@ -197,6 +197,7 @@ class Meta {
     this.progresso = 0,
     this.status = StatusMeta.emAndamento,
     List<EstadoCheck>? checks,
+    this.periodoInicio,
   }) : checks = checks ?? [];
 
   // Documento do Firestore -> objeto Meta.
@@ -230,9 +231,15 @@ class Meta {
         StatusMeta.emAndamento,
       ),
       checks: ((d['checks'] as List?) ?? const [])
-          .map((e) =>
-              _enumFromName(EstadoCheck.values, e as String?, EstadoCheck.vazio))
+          .map(
+            (e) => _enumFromName(
+              EstadoCheck.values,
+              e as String?,
+              EstadoCheck.vazio,
+            ),
+          )
           .toList(),
+      periodoInicio: (d['periodo_inicio'] as Timestamp?)?.toDate(),
     );
   }
 
@@ -240,21 +247,21 @@ class Meta {
   // `criado_em` NÃO entra aqui de propósito: ele é gravado só na criação
   // (na TelaMetas), pra um update não sobrescrever a data original.
   Map<String, dynamic> toMap(String email) => {
-        'criado_por': email,
-        'titulo': titulo,
-        // Identidade visual do hobby copiada pra dentro da meta (desnormalização).
-        'hobby_id': hobby.id,
-        'hobby_nome': hobby.nome,
-        'hobby_cor': hobby.cor.toARGB32(),
-        'hobby_emoji': hobby.emoji,
-        'tipo': tipo.name,
-        'frequencia': frequencia.toMap(),
-        'valor_alvo': valorAlvo,
-        'progresso': progresso,
-        'status': status.name,
-        'checks': checks.map((c) => c.name).toList(),
-        'ultima_atualizacao': Timestamp.now(),
-      };
+    'criado_por': email,
+    'titulo': titulo,
+    // Identidade visual do hobby copiada pra dentro da meta (desnormalização).
+    'hobby_id': hobby.id,
+    'hobby_nome': hobby.nome,
+    'hobby_cor': hobby.cor.toARGB32(),
+    'hobby_emoji': hobby.emoji,
+    'tipo': tipo.name,
+    'frequencia': frequencia.toMap(),
+    'valor_alvo': valorAlvo,
+    'progresso': progresso,
+    'status': status.name,
+    'checks': checks.map((c) => c.name).toList(),
+    'ultima_atualizacao': Timestamp.now(),
+  };
 
   // Identidade visual derivada do hobby.
   String get emoji => hobby.emoji;
@@ -265,6 +272,39 @@ class Meta {
   double get percentual {
     if (valorAlvo <= 0) return 0;
     final p = progresso / valorAlvo;
+    return p > 1 ? 1 : p;
+  }
+
+  // Início do período atual (base do reset do progresso quantitativo),
+  // derivado da frequência: diário / semanal (começa na segunda) / mensal.
+  // "Dias específicos" usa ciclo semanal.
+  DateTime inicioPeriodoAtual(DateTime agora) {
+    final hoje = DateTime(agora.year, agora.month, agora.day);
+    DateTime inicioSemana() => hoje.subtract(Duration(days: agora.weekday - 1));
+
+    if (frequencia.tipo == TipoFrequencia.diasSemana) return inicioSemana();
+    switch (frequencia.unidade) {
+      case UnidadePeriodo.dia:
+        return hoje;
+      case UnidadePeriodo.semana:
+        return inicioSemana();
+      case UnidadePeriodo.mes:
+        return DateTime(agora.year, agora.month, 1);
+    }
+  }
+
+  // Progresso considerando o reset por período: se o progresso foi registrado
+  // num período que já passou, conta como 0 (zerou no novo período).
+  int get progressoEfetivo {
+    if (periodoInicio == null) return progresso;
+    return periodoInicio!.isBefore(inicioPeriodoAtual(DateTime.now()))
+        ? 0
+        : progresso;
+  }
+
+  double get percentualEfetivo {
+    if (valorAlvo <= 0) return 0;
+    final p = progressoEfetivo / valorAlvo;
     return p > 1 ? 1 : p;
   }
 

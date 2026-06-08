@@ -116,7 +116,10 @@ class _FiltroSheetState extends State<_FiltroSheet> {
               hintStyle: const TextStyle(color: texto, fontSize: 14),
               prefixIcon: const Icon(Icons.search, color: texto, size: 20),
               isDense: true,
-              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 12,
+                vertical: 12,
+              ),
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(24),
                 borderSide: const BorderSide(color: Color(0xFFE6E1D8)),
@@ -137,16 +140,23 @@ class _FiltroSheetState extends State<_FiltroSheet> {
             itemBuilder: (_, i) {
               final nome = lista[i];
               final ativo = nome == selecionado;
-              final icone = nome == 'Todos' ? Icons.apps_rounded : _iconeParaNome(nome.toLowerCase());
+              final icone = nome == 'Todos'
+                  ? Icons.apps_rounded
+                  : _iconeParaNome(nome.toLowerCase());
               return InkWell(
                 borderRadius: BorderRadius.circular(12),
                 onTap: () => setState(() => selecionado = nome),
                 child: Container(
                   margin: const EdgeInsets.symmetric(vertical: 4),
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 10,
+                  ),
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(12),
-                    color: ativo ? roxo.withValues(alpha: 0.08) : Colors.transparent,
+                    color: ativo
+                        ? roxo.withValues(alpha: 0.08)
+                        : Colors.transparent,
                   ),
                   child: Row(
                     children: [
@@ -179,7 +189,8 @@ class _FiltroSheetState extends State<_FiltroSheet> {
                         ),
                       ),
                       const Spacer(),
-                      if (ativo) const Icon(Icons.check_rounded, color: roxo, size: 18),
+                      if (ativo)
+                        const Icon(Icons.check_rounded, color: roxo, size: 18),
                     ],
                   ),
                 ),
@@ -201,7 +212,11 @@ class _FiltroSheetState extends State<_FiltroSheet> {
               ),
               child: const Text(
                 'Aplicar',
-                style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w700),
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 15,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
             ),
           ),
@@ -210,7 +225,6 @@ class _FiltroSheetState extends State<_FiltroSheet> {
     );
   }
 }
-
 
 // ---------------------------------------------------------------------------
 // TelaHome — conectada ao Firebase Auth e ao Firestore
@@ -301,17 +315,18 @@ class _TelaHomeState extends State<TelaHome> {
   ///
   /// O [StreamBuilder] na UI reconstrói automaticamente sempre que há
   /// alteração no banco, sem necessidade de chamar setState manualmente.
-  // Retorna apenas hobbies ativos (não pausados) do usuário
+  // Hobbies do usuário logado. A coleção `hobbies` é gravada pela tela
+  // CriarHobby com o campo `userId` (o uid do Auth) — é por ele que filtramos.
+  // Os documentos não têm campo `pausado`, então não dá pra filtrar por ele.
   Stream<QuerySnapshot<Map<String, dynamic>>> get _streamHobbies => _db
       .collection('hobbies')
-      .where('criado_por', isEqualTo: _usuario?.email ?? '')
-      .where('pausado', isEqualTo: false)
+      .where('userId', isEqualTo: _usuario?.uid ?? '')
       .snapshots();
 
-  // Retorna todos os hobbies incluindo pausados (para detectar atividade em risco)
+  // Mesma fonte; mantido separado porque o card de "atividade em risco" o consome.
   Stream<QuerySnapshot<Map<String, dynamic>>> get _streamTodosHobbies => _db
       .collection('hobbies')
-      .where('criado_por', isEqualTo: _usuario?.email ?? '')
+      .where('userId', isEqualTo: _usuario?.uid ?? '')
       .snapshots();
 
   // -------------------------------------------------------------------------
@@ -402,7 +417,8 @@ class _TelaHomeState extends State<TelaHome> {
                                 Padding(
                                   padding: const EdgeInsets.only(right: 16),
                                   child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
                                       Image.asset(
                                         'hobbytrack_logo_sem_fundo.png',
@@ -412,7 +428,8 @@ class _TelaHomeState extends State<TelaHome> {
                                       Transform.translate(
                                         offset: const Offset(0, -30),
                                         child: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
                                           mainAxisSize: MainAxisSize.min,
                                           children: [
                                             // Saudação dinâmica com nome real do Firebase Auth
@@ -427,7 +444,10 @@ class _TelaHomeState extends State<TelaHome> {
                                             const SizedBox(height: 2),
                                             const Text(
                                               'Que tal registrar um momento do seu hobby hoje?',
-                                              style: TextStyle(fontSize: 13, color: Color(0xFF6B6474)),
+                                              style: TextStyle(
+                                                fontSize: 13,
+                                                color: Color(0xFF6B6474),
+                                              ),
                                             ),
                                           ],
                                         ),
@@ -444,13 +464,16 @@ class _TelaHomeState extends State<TelaHome> {
                                   carregando: carregando,
                                   onExcluir: _excluirHobby,
                                   filtroAtivo: _filtroAtivo,
-                                  onFiltroAlterado: (f) => setState(() => _filtroAtivo = f),
+                                  onFiltroAlterado: (f) =>
+                                      setState(() => _filtroAtivo = f),
                                 ),
                                 const SizedBox(height: 22),
                                 // Card de evolução com contagem real de hobbies
                                 _CardEvolucao(docs: docs),
                                 const SizedBox(height: 16),
-                                StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                                StreamBuilder<
+                                  QuerySnapshot<Map<String, dynamic>>
+                                >(
                                   stream: _streamTodosHobbies,
                                   builder: (context, snapTodos) {
                                     final todos = snapTodos.data?.docs ?? [];
@@ -573,7 +596,8 @@ class _HeaderClipper extends CustomClipper<Path> {
     path.lineTo(0, size.height - baseY);
     for (int i = 0; i <= 100; i++) {
       final x = size.width * i / 100;
-      final y = size.height - baseY + amplitude * math.sin(i / 100 * 2 * math.pi);
+      final y =
+          size.height - baseY + amplitude * math.sin(i / 100 * 2 * math.pi);
       path.lineTo(x, y);
     }
     path.lineTo(size.width, 0);
@@ -633,7 +657,11 @@ class _BotaoRegistrar extends StatelessWidget {
           ),
           child: const Text(
             '+ Registrar progresso',
-            style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w700),
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 15,
+              fontWeight: FontWeight.w700,
+            ),
           ),
         ),
       ),
@@ -676,7 +704,9 @@ class _SecaoHobbiesAtivos extends StatelessWidget {
     // Aplica o filtro selecionado
     final docsFiltrados = filtroAtivo == 'Todos'
         ? docs
-        : docs.where((d) => (d.data()['nome'] as String? ?? '') == filtroAtivo).toList();
+        : docs
+              .where((d) => (d.data()['nome'] as String? ?? '') == filtroAtivo)
+              .toList();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -687,19 +717,30 @@ class _SecaoHobbiesAtivos extends StatelessWidget {
             children: [
               const Text(
                 'Hobbies ativos',
-                style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: Color(0xFF2B2B2B)),
+                style: TextStyle(
+                  fontSize: 17,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF2B2B2B),
+                ),
               ),
               if (filtroAtivo != 'Todos')
                 Container(
                   margin: const EdgeInsets.only(left: 8),
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 2,
+                  ),
                   decoration: BoxDecoration(
                     color: roxo.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Text(
                     filtroAtivo,
-                    style: const TextStyle(fontSize: 11, color: roxo, fontWeight: FontWeight.w600),
+                    style: const TextStyle(
+                      fontSize: 11,
+                      color: roxo,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ),
               const Spacer(),
@@ -710,11 +751,17 @@ class _SecaoHobbiesAtivos extends StatelessWidget {
                     barrierColor: Colors.black.withValues(alpha: 0.25),
                     builder: (_) => Dialog(
                       backgroundColor: Colors.white,
-                      insetPadding: const EdgeInsets.symmetric(horizontal: 40, vertical: 80),
+                      insetPadding: const EdgeInsets.symmetric(
+                        horizontal: 40,
+                        vertical: 80,
+                      ),
                       shape: const RoundedRectangleBorder(
                         borderRadius: BorderRadius.all(Radius.circular(18)),
                       ),
-                      child: _FiltroSheet(opcoes: nomesUnicos, selecionadoAtual: filtroAtivo),
+                      child: _FiltroSheet(
+                        opcoes: nomesUnicos,
+                        selecionadoAtual: filtroAtivo,
+                      ),
                     ),
                   );
                   if (resultado != null) onFiltroAlterado(resultado);
@@ -731,50 +778,65 @@ class _SecaoHobbiesAtivos extends StatelessWidget {
         const SizedBox(height: 12),
         if (carregando)
           const SizedBox(
-            height: 210,
+            height: 132,
             child: Center(child: CircularProgressIndicator(color: roxo)),
           )
         else if (docsFiltrados.isEmpty)
           const _EmptyHobbies()
         else
-          SizedBox(
-            height: 210,
-            child: ListView.separated(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              itemCount: docsFiltrados.length,
-              separatorBuilder: (context, index) => const SizedBox(width: 12),
-              itemBuilder: (context, i) {
-                final d = docsFiltrados[i].data();
-                return _CardHobby(
-                  id: docsFiltrados[i].id,
-                  icone: _iconeParaNome(d['icone_nome'] as String? ?? ''),
-                  corIcone: Color(d['cor'] as int? ?? 0xFF8FC79A),
-                  nome: d['nome'] as String? ?? '',
-                  info: d['info'] as String? ?? '',
-                  progresso: d['progresso'] as int? ?? 0,
-                  meta: d['meta'] as int? ?? 1,
-                  streak: d['streak'] as String?,
-                  proximo: d['proximo'] as String? ?? '',
-                  onExcluir: () => onExcluir(docsFiltrados[i].id),
-                );
-              },
-            ),
-          ),
-        const SizedBox(height: 8),
-        Center(
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              _Dot(ativo: true),
-              const SizedBox(width: 6),
-              _Dot(ativo: false),
-              const SizedBox(width: 6),
-              _Dot(ativo: false),
-            ],
-          ),
-        ),
+          _HobbiesScroller(docs: docsFiltrados, onExcluir: onExcluir),
       ],
+    );
+  }
+}
+
+/// Lista horizontal de cards de hobby com uma scrollbar sempre visível.
+/// É StatefulWidget só para manter o [ScrollController] vivo (e descartá-lo),
+/// que o [Scrollbar] e a [ListView] precisam compartilhar.
+class _HobbiesScroller extends StatefulWidget {
+  final List<QueryDocumentSnapshot<Map<String, dynamic>>> docs;
+  final Future<void> Function(String id) onExcluir;
+
+  const _HobbiesScroller({required this.docs, required this.onExcluir});
+
+  @override
+  State<_HobbiesScroller> createState() => _HobbiesScrollerState();
+}
+
+class _HobbiesScrollerState extends State<_HobbiesScroller> {
+  final _scrollCtrl = ScrollController();
+
+  @override
+  void dispose() {
+    _scrollCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 132,
+      child: Scrollbar(
+        controller: _scrollCtrl,
+        thumbVisibility: true,
+        child: ListView.separated(
+          controller: _scrollCtrl,
+          scrollDirection: Axis.horizontal,
+          // Espaço embaixo para a barra não encostar nos cards.
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+          itemCount: widget.docs.length,
+          separatorBuilder: (context, index) => const SizedBox(width: 12),
+          itemBuilder: (context, i) {
+            final d = widget.docs[i].data();
+            return _CardHobby(
+              id: widget.docs[i].id,
+              emoji: d['emoji'] as String? ?? '🎯',
+              nome: d['nome'] as String? ?? '',
+              onExcluir: () => widget.onExcluir(widget.docs[i].id),
+            );
+          },
+        ),
+      ),
     );
   }
 }
@@ -786,7 +848,7 @@ class _EmptyHobbies extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return const SizedBox(
-      height: 210,
+      height: 132,
       child: Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -810,23 +872,6 @@ class _EmptyHobbies extends StatelessWidget {
   }
 }
 
-class _Dot extends StatelessWidget {
-  final bool ativo;
-  const _Dot({required this.ativo});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: ativo ? 20 : 8,
-      height: 8,
-      decoration: BoxDecoration(
-        color: ativo ? roxo : const Color(0xFFD9D4CC),
-        borderRadius: BorderRadius.circular(4),
-      ),
-    );
-  }
-}
-
 // ---------------------------------------------------------------------------
 // Card de hobby individual
 // ---------------------------------------------------------------------------
@@ -835,26 +880,14 @@ class _Dot extends StatelessWidget {
 /// [onExcluir] deleta o documento via [_excluirHobby] do estado pai.
 class _CardHobby extends StatelessWidget {
   final String id;
-  final IconData icone;
-  final Color corIcone;
+  final String emoji;
   final String nome;
-  final String info;
-  final int progresso;
-  final int meta;
-  final String? streak;
-  final String proximo;
   final VoidCallback onExcluir;
 
   const _CardHobby({
     required this.id,
-    required this.icone,
-    required this.corIcone,
+    required this.emoji,
     required this.nome,
-    required this.info,
-    required this.progresso,
-    required this.meta,
-    required this.streak,
-    required this.proximo,
     required this.onExcluir,
   });
 
@@ -883,7 +916,10 @@ class _CardHobby extends StatelessWidget {
             ),
             ListTile(
               leading: const Icon(Icons.delete_outline, color: Colors.red),
-              title: const Text('Excluir hobby', style: TextStyle(color: Colors.red)),
+              title: const Text(
+                'Excluir hobby',
+                style: TextStyle(color: Colors.red),
+              ),
               onTap: () {
                 Navigator.pop(context);
                 onExcluir();
@@ -898,127 +934,65 @@ class _CardHobby extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final double pct = meta == 0 ? 0 : progresso / meta;
     return Container(
-      width: 165,
-      padding: const EdgeInsets.all(12),
+      width: 150,
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.06),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
           ),
         ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Container(
-                width: 38,
-                height: 38,
+                width: 48,
+                height: 48,
                 decoration: BoxDecoration(
-                  color: corIcone.withValues(alpha: 0.35),
-                  shape: BoxShape.circle,
+                  gradient: LinearGradient(
+                    colors: [
+                      roxo.withValues(alpha: 0.16),
+                      laranja.withValues(alpha: 0.16),
+                    ],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(14),
                 ),
                 alignment: Alignment.center,
-                child: Icon(icone, color: corIcone, size: 22),
+                child: Text(emoji, style: const TextStyle(fontSize: 26)),
               ),
               const Spacer(),
               GestureDetector(
                 onTap: () => _mostrarMenu(context),
-                child: const Icon(Icons.more_vert, size: 18, color: texto),
+                behavior: HitTestBehavior.opaque,
+                child: const Padding(
+                  padding: EdgeInsets.only(left: 4, bottom: 4),
+                  child: Icon(Icons.more_vert, size: 18, color: texto),
+                ),
               ),
             ],
           ),
-          const SizedBox(height: 8),
           Text(
             nome,
-            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: Color(0xFF2B2B2B)),
-          ),
-          Text(info, style: const TextStyle(fontSize: 11, color: texto)),
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              SizedBox(
-                width: 44,
-                height: 44,
-                child: Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    SizedBox(
-                      width: 44,
-                      height: 44,
-                      child: CircularProgressIndicator(
-                        value: pct,
-                        strokeWidth: 4,
-                        backgroundColor: const Color(0xFFEAE6DE),
-                        valueColor: const AlwaysStoppedAnimation(roxo),
-                      ),
-                    ),
-                    Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          '$progresso',
-                          style: const TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w700,
-                            color: roxo,
-                            height: 1,
-                          ),
-                        ),
-                        Text(
-                          '/$meta',
-                          style: const TextStyle(fontSize: 9, color: texto, height: 1),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 8),
-              if (streak != null)
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text('sequência', style: TextStyle(fontSize: 10, color: texto)),
-                      Row(
-                        children: [
-                          const Text('🔥', style: TextStyle(fontSize: 12)),
-                          const SizedBox(width: 2),
-                          Text(
-                            streak!,
-                            style: const TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w700,
-                              color: laranja,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  'Próximo: $proximo',
-                  style: const TextStyle(fontSize: 10, color: texto),
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-              const Icon(Icons.radio_button_unchecked, size: 14, color: texto),
-            ],
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w700,
+              color: Color(0xFF2B2B2B),
+              height: 1.2,
+            ),
           ),
         ],
       ),
@@ -1035,38 +1009,11 @@ class _CardEvolucao extends StatelessWidget {
   final List<QueryDocumentSnapshot<Map<String, dynamic>>> docs;
   const _CardEvolucao({required this.docs});
 
-  // Maior streak entre todos os hobbies (ex: "7 dias" → 7)
-  int get _maiorStreak {
-    int max = 0;
-    for (final doc in docs) {
-      final streak = doc.data()['streak'] as String? ?? '';
-      final num = int.tryParse(streak.replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
-      if (num > max) max = num;
-    }
-    return max;
-  }
-
-  // Média de conclusão de todos os hobbies em %
-  String get _evolucaoMedia {
-    if (docs.isEmpty) return '0%';
-    double soma = 0;
-    for (final doc in docs) {
-      final d = doc.data();
-      final progresso = (d['progresso'] as int? ?? 0).toDouble();
-      final meta = (d['meta'] as int? ?? 1).toDouble();
-      soma += meta == 0 ? 0 : (progresso / meta) * 100;
-    }
-    final media = (soma / docs.length).round();
-    return '+$media%';
-  }
-
-  // Exibe mensagem diferente conforme o progresso
+  // Mensagem de incentivo. Hobbies ainda não têm rastreio de progresso/streak,
+  // então a mensagem não depende desses dados (que seriam sempre 0).
   String get _mensagemConstancia {
     if (docs.isEmpty) return 'Cadastre seu primeiro hobby para começar!';
-    final streak = _maiorStreak;
-    if (streak >= 7) return 'Incrível! Você manteve a constância esta semana! 🔥';
-    if (streak >= 3) return 'Você está mantendo a constância! Continue assim 💪';
-    return 'Que tal registrar seu hobby hoje? 🎯';
+    return 'Continue cuidando dos seus hobbies! 🎯';
   }
 
   @override
@@ -1090,7 +1037,11 @@ class _CardEvolucao extends StatelessWidget {
         children: [
           const Text(
             'Sua evolução',
-            style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: Color(0xFF2B2B2B)),
+            style: TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w700,
+              color: Color(0xFF2B2B2B),
+            ),
           ),
           const SizedBox(height: 12),
           Container(
@@ -1109,33 +1060,11 @@ class _CardEvolucao extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 14),
-                Row(
-                  children: [
-                    // Total de hobbies vindo do Firestore
-                    Expanded(
-                      child: _StatEvolucao(
-                        valor: '${docs.length}',
-                        rotulo: 'hobbies ativos',
-                        cor: const Color(0xFF2B2B2B),
-                      ),
-                    ),
-                    // Maior streak entre todos os hobbies
-                    Expanded(
-                      child: _StatEvolucao(
-                        valor: '$_maiorStreak',
-                        rotulo: 'dias de constância',
-                        cor: const Color(0xFF2B2B2B),
-                      ),
-                    ),
-                    // Média de conclusão dos hobbies
-                    Expanded(
-                      child: _StatEvolucao(
-                        valor: _evolucaoMedia,
-                        rotulo: 'evolução da semana',
-                        cor: const Color(0xFF22A36B),
-                      ),
-                    ),
-                  ],
+                // Total de hobbies vindo do Firestore (único dado real hoje).
+                _StatEvolucao(
+                  valor: '${docs.length}',
+                  rotulo: 'hobbies ativos',
+                  cor: const Color(0xFF2B2B2B),
                 ),
               ],
             ),
@@ -1150,7 +1079,11 @@ class _StatEvolucao extends StatelessWidget {
   final String valor;
   final String rotulo;
   final Color cor;
-  const _StatEvolucao({required this.valor, required this.rotulo, required this.cor});
+  const _StatEvolucao({
+    required this.valor,
+    required this.rotulo,
+    required this.cor,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -1158,7 +1091,11 @@ class _StatEvolucao extends StatelessWidget {
       children: [
         Text(
           valor,
-          style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: cor),
+          style: TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.w800,
+            color: cor,
+          ),
         ),
         const SizedBox(height: 2),
         Text(
@@ -1238,7 +1175,11 @@ class _CardAtividadeRisco extends StatelessWidget {
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Icon(Icons.warning_amber_rounded, color: laranja, size: 26),
+                const Icon(
+                  Icons.warning_amber_rounded,
+                  color: laranja,
+                  size: 26,
+                ),
                 const SizedBox(width: 10),
                 Expanded(
                   child: Column(
@@ -1246,7 +1187,11 @@ class _CardAtividadeRisco extends StatelessWidget {
                     children: [
                       const Text(
                         'Atividade em risco',
-                        style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: laranja),
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                          color: laranja,
+                        ),
                       ),
                       const SizedBox(height: 2),
                       Text(
@@ -1283,7 +1228,11 @@ class _CardAtividadeRisco extends StatelessWidget {
                       ),
                       child: const Text(
                         'Retomar agora',
-                        style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w700),
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
                     ),
                   ),
@@ -1302,7 +1251,11 @@ class _CardAtividadeRisco extends StatelessWidget {
                       ),
                       child: const Text(
                         'Pausar',
-                        style: TextStyle(color: Color(0xFF2B2B2B), fontSize: 12, fontWeight: FontWeight.w600),
+                        style: TextStyle(
+                          color: Color(0xFF2B2B2B),
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                     ),
                   ),
@@ -1343,7 +1296,11 @@ class _BottomNav extends StatelessWidget {
           Row(
             children: [
               Expanded(
-                child: _NavItem(icon: Icons.home_rounded, label: 'Home', ativo: true),
+                child: _NavItem(
+                  icon: Icons.home_rounded,
+                  label: 'Home',
+                  ativo: true,
+                ),
               ),
               Expanded(
                 child: _NavItem(
@@ -1418,7 +1375,12 @@ class _NavItem extends StatelessWidget {
   final String label;
   final bool ativo;
   final VoidCallback? onTap;
-  const _NavItem({required this.icon, required this.label, this.ativo = false, this.onTap});
+  const _NavItem({
+    required this.icon,
+    required this.label,
+    this.ativo = false,
+    this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
