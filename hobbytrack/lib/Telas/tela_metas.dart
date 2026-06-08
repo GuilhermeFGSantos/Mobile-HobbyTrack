@@ -21,6 +21,7 @@ const Color _purple = Color(0xFF8738F2);
 const Color _orange = Color(0xFFFF7A00);
 const Color _grayText = Color(0xFF6B6474);
 const Color _grayLight = Color(0xFF9E9E9E);
+const Color _verde = Color(0xFF22C55E);
 
 class TelaMetas extends StatefulWidget {
   const TelaMetas({super.key});
@@ -55,9 +56,13 @@ class _TelaMetasState extends State<TelaMetas> {
       case FiltroMeta.todas:
         return metas;
       case FiltroMeta.emAndamento:
-        return metas.where((m) => m.status == StatusMeta.emAndamento).toList();
+        return metas
+            .where((m) => m.statusEfetivo == StatusMeta.emAndamento)
+            .toList();
       case FiltroMeta.concluidas:
-        return metas.where((m) => m.status == StatusMeta.concluida).toList();
+        return metas
+            .where((m) => m.statusEfetivo == StatusMeta.concluida)
+            .toList();
     }
   }
 
@@ -153,16 +158,24 @@ class _TelaMetasState extends State<TelaMetas> {
     });
   }
 
-  // Cicla o estado do check no índice i: vazio → concluído → falhado → vazio.
+  // Toque num check: se for requerido, cicla vazio → concluído → falhado →
+  // vazio. Se for um check EXCEDENTE (lucro, índice além da frequência),
+  // tocar remove ele.
   Future<void> alternarCheck(Meta meta, int i) async {
     if (i < 0 || i >= meta.checks.length) return;
+    final requeridos = meta.frequencia.totalOcorrencias;
     // Trabalha numa cópia e grava a lista inteira de volta no documento.
     final novosChecks = List<EstadoCheck>.from(meta.checks);
-    novosChecks[i] = switch (novosChecks[i]) {
-      EstadoCheck.vazio => EstadoCheck.concluido,
-      EstadoCheck.concluido => EstadoCheck.falhado,
-      EstadoCheck.falhado => EstadoCheck.vazio,
-    };
+
+    if (i >= requeridos) {
+      novosChecks.removeAt(i); // desfaz um excedente
+    } else {
+      novosChecks[i] = switch (novosChecks[i]) {
+        EstadoCheck.vazio => EstadoCheck.concluido,
+        EstadoCheck.concluido => EstadoCheck.falhado,
+        EstadoCheck.falhado => EstadoCheck.vazio,
+      };
+    }
 
     // Conclui automaticamente se todos os checks estão como concluído.
     final todosOk =
@@ -173,6 +186,24 @@ class _TelaMetasState extends State<TelaMetas> {
     await _metasRef.doc(meta.id).update({
       'checks': novosChecks.map((c) => c.name).toList(),
       'status': novoStatus.name,
+      'ultima_atualizacao': Timestamp.now(),
+    });
+  }
+
+  // Adiciona um check "excedente" (lucro) a uma qualitativa já completa —
+  // o equivalente, em frequência, a ultrapassar o valor-alvo da quantitativa.
+  Future<void> adicionarExcedente(Meta meta) async {
+    if (meta.tipo != TipoMeta.qualitativa) return;
+    final completa =
+        meta.checks.isNotEmpty &&
+        meta.checks.every((c) => c == EstadoCheck.concluido);
+    if (!completa) return;
+
+    final novos = List<EstadoCheck>.from(meta.checks)
+      ..add(EstadoCheck.concluido);
+    await _metasRef.doc(meta.id).update({
+      'checks': novos.map((c) => c.name).toList(),
+      'status': StatusMeta.concluida.name,
       'ultima_atualizacao': Timestamp.now(),
     });
   }
@@ -212,7 +243,9 @@ class _TelaMetasState extends State<TelaMetas> {
     final rolou =
         meta.periodoInicio == null || meta.periodoInicio!.isBefore(inicioAtual);
     final base = rolou ? 0 : meta.progresso;
-    final novo = (base + valor).clamp(0, meta.valorAlvo);
+    // Soma livremente: o progresso PODE ultrapassar o valor-alvo (ex: meta de
+    // 10 páginas e a pessoa leu 15). A barra só satura visualmente em 100%.
+    final novo = base + valor;
 
     await _metasRef.doc(meta.id).update({
       'progresso': novo,
@@ -392,6 +425,8 @@ class _TelaMetasState extends State<TelaMetas> {
                                             ? () => abrirRegistrarProgresso(m)
                                             : null,
                                         onCheckTap: (i) => alternarCheck(m, i),
+                                        onAddExcedente: () =>
+                                            adicionarExcedente(m),
                                       ),
                                       const SizedBox(height: 12),
                                     ],
@@ -661,6 +696,7 @@ class _CardMeta extends StatelessWidget {
   final VoidCallback onPausar;
   final VoidCallback? onRegistrar;
   final ValueChanged<int> onCheckTap;
+  final VoidCallback onAddExcedente;
 
   const _CardMeta({
     required this.meta,
@@ -670,6 +706,7 @@ class _CardMeta extends StatelessWidget {
     required this.onPausar,
     required this.onRegistrar,
     required this.onCheckTap,
+    required this.onAddExcedente,
   });
 
   @override
@@ -728,7 +765,11 @@ class _CardMeta extends StatelessWidget {
                   if (meta.tipo == TipoMeta.quantitativa)
                     _ProgressoQuantitativo(meta: meta)
                   else
-                    _ProgressoChecks(meta: meta, onCheckTap: onCheckTap),
+                    _ProgressoChecks(
+                      meta: meta,
+                      onCheckTap: onCheckTap,
+                      onAddExcedente: onAddExcedente,
+                    ),
                 ],
               ),
             ),
@@ -755,15 +796,38 @@ class _ProgressoQuantitativo extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final atual = meta.progressoEfetivo;
+    final excedeu = meta.valorAlvo > 0 && atual > meta.valorAlvo;
     final falta = (meta.valorAlvo - atual).clamp(0, meta.valorAlvo);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          falta > 0
-              ? 'Progresso: $atual/${meta.valorAlvo} · faltam $falta'
-              : 'Progresso: $atual/${meta.valorAlvo} · concluído ✅',
-          style: const TextStyle(fontSize: 11, color: _grayText),
+        Text.rich(
+          TextSpan(
+            style: const TextStyle(fontSize: 11, color: _grayText),
+            children: [
+              const TextSpan(text: 'Progresso: '),
+              // Quando há excesso (lucro), o número fica verde.
+              TextSpan(
+                text: '$atual',
+                style: TextStyle(
+                  color: excedeu ? _verde : _grayText,
+                  fontWeight: excedeu ? FontWeight.w700 : FontWeight.w400,
+                ),
+              ),
+              TextSpan(text: '/${meta.valorAlvo}'),
+              TextSpan(
+                text: excedeu
+                    ? '  ·  +${atual - meta.valorAlvo} 🎉'
+                    : (falta > 0 ? '  ·  faltam $falta' : '  ·  concluído ✅'),
+                style: excedeu
+                    ? const TextStyle(
+                        color: _verde,
+                        fontWeight: FontWeight.w700,
+                      )
+                    : null,
+              ),
+            ],
+          ),
         ),
         const SizedBox(height: 4),
         ClipRRect(
@@ -772,7 +836,9 @@ class _ProgressoQuantitativo extends StatelessWidget {
             value: meta.percentualEfetivo,
             minHeight: 6,
             backgroundColor: Colors.white.withOpacity(0.7),
-            valueColor: AlwaysStoppedAnimation<Color>(meta.cor),
+            valueColor: AlwaysStoppedAnimation<Color>(
+              excedeu ? _verde : meta.cor,
+            ),
           ),
         ),
       ],
@@ -783,21 +849,55 @@ class _ProgressoQuantitativo extends StatelessWidget {
 class _ProgressoChecks extends StatelessWidget {
   final Meta meta;
   final ValueChanged<int> onCheckTap;
+  final VoidCallback onAddExcedente;
 
-  const _ProgressoChecks({required this.meta, required this.onCheckTap});
+  const _ProgressoChecks({
+    required this.meta,
+    required this.onCheckTap,
+    required this.onAddExcedente,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Row(
+    final completa =
+        meta.checks.isNotEmpty &&
+        meta.checks.every((c) => c == EstadoCheck.concluido);
+    return Wrap(
+      spacing: 6,
+      runSpacing: 6,
       children: [
-        for (int i = 0; i < meta.checks.length; i++) ...[
+        for (int i = 0; i < meta.checks.length; i++)
           GestureDetector(
             onTap: () => onCheckTap(i),
             child: _CaixaCheck(estado: meta.checks[i]),
           ),
-          const SizedBox(width: 6),
-        ],
+        // Tudo concluído → surge a caixinha verde de "lucro" (excedente).
+        if (completa)
+          GestureDetector(
+            onTap: onAddExcedente,
+            child: const _CaixaCheckAddExcedente(),
+          ),
       ],
+    );
+  }
+}
+
+// Caixinha verde que aparece quando a meta por frequência está completa:
+// tocar adiciona um check excedente (lucro) além da frequência exigida.
+class _CaixaCheckAddExcedente extends StatelessWidget {
+  const _CaixaCheckAddExcedente();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 26,
+      height: 22,
+      decoration: BoxDecoration(
+        color: _verde.withOpacity(0.18),
+        borderRadius: BorderRadius.circular(4),
+        border: Border.all(color: _verde, width: 1),
+      ),
+      child: const Icon(Icons.add, color: _verde, size: 16),
     );
   }
 }
