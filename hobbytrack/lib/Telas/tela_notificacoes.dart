@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class AppNotification {
   final String title;
@@ -21,43 +22,29 @@ class AppNotification {
 class TelaNotificacoes extends StatelessWidget {
   TelaNotificacoes({super.key});
 
-  final Color _bg = const Color(0xFFF9F9F9); // off-white
+  final Color _bg = const Color(0xFFF9F9F9);
   final Color _purple = const Color(0xFF7B61FF);
   final Color _textPrimary = const Color(0xFF333333);
   final Color _textSecondary = const Color(0xFF888888);
 
-  final List<AppNotification> _mockNotifications = [
-    AppNotification(
-      title: 'Atividade em risco!',
-      message: 'Você está há 9 dias sem atualizar Violino. Retome agora!',
-      time: 'Há 2 horas',
-      icon: Icons.warning_rounded,
-      iconColor: const Color(0xFFFF7A00),
-      isUnread: true,
-    ),
-    AppNotification(
-      title: 'Meta Concluída',
-      message: 'Parabéns! Você bateu sua meta de leitura diária.',
-      time: 'Ontem',
-      icon: Icons.check_circle_rounded,
-      iconColor: Colors.green,
-      isUnread: true,
-    ),
-    AppNotification(
-      title: 'Lembrete de Hábito',
-      message: 'Hora de praticar Yoga. Reserve seus 30 minutos.',
-      time: 'Ontem',
-      icon: Icons.notifications_rounded,
-      iconColor: const Color(0xFF7B61FF),
-    ),
-    AppNotification(
-      title: 'Nova conquista desbloqueada 🔥',
-      message: 'Você manteve uma constância de 7 dias consecutivos!',
-      time: '15 de Mai',
-      icon: Icons.local_fire_department_rounded,
-      iconColor: const Color(0xFFFF7A00),
-    ),
-  ];
+  IconData _getIcon(String? iconName) {
+    switch (iconName) {
+      case 'warning': return Icons.warning_rounded;
+      case 'check': return Icons.check_circle_rounded;
+      case 'reminder': return Icons.notifications_rounded;
+      case 'fire': return Icons.local_fire_department_rounded;
+      default: return Icons.notifications_rounded;
+    }
+  }
+
+  Color _getColor(String? colorName) {
+    switch (colorName) {
+      case 'orange': return const Color(0xFFFF7A00);
+      case 'green': return Colors.green;
+      case 'purple': return const Color(0xFF7B61FF);
+      default: return const Color(0xFF7B61FF);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -80,39 +67,80 @@ class TelaNotificacoes extends StatelessWidget {
           ),
         ),
       ),
-      body: _mockNotifications.isEmpty
-          ? _buildEmptyState()
-          : ListView.builder(
-              padding: const EdgeInsets.all(20),
-              itemCount: _mockNotifications.length,
-              itemBuilder: (context, index) {
-                final notification = _mockNotifications[index];
-                return _NotificationCard(
-                  notification: notification,
-                  purple: _purple,
-                  textPrimary: _textPrimary,
-                  textSecondary: _textSecondary,
-                );
-              },
-            ),
+      body: StreamBuilder<QuerySnapshot>(
+        stream: FirebaseFirestore.instance.collection('notificacoes').snapshots(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+
+          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+            return _buildEmptyState(context);
+          }
+
+          final docs = snapshot.data!.docs;
+
+          return ListView.builder(
+            padding: const EdgeInsets.all(20),
+            itemCount: docs.length,
+            itemBuilder: (context, index) {
+              final dados = docs[index].data() as Map<String, dynamic>;
+
+              final notification = AppNotification(
+                title: dados['title'] ?? '',
+                message: dados['message'] ?? '',
+                time: dados['time'] ?? '',
+                icon: _getIcon(dados['icon']),
+                iconColor: _getColor(dados['iconColor']),
+                isUnread: dados['isUnread'] ?? false,
+              );
+
+              return _NotificationCard(
+                notification: notification,
+                purple: _purple,
+                textPrimary: _textPrimary,
+                textSecondary: _textSecondary,
+              );
+            },
+          );
+        },
+      ),
     );
   }
 
-  Widget _buildEmptyState() {
+  Widget _buildEmptyState(BuildContext context) {
     return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.notifications_off_outlined, size: 60, color: Colors.grey[300]),
-          const SizedBox(height: 16),
-          Text(
-            'Nenhuma notificação por aqui',
-            style: TextStyle(
-              color: _textSecondary,
-              fontSize: 14,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 40),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.notifications_off_outlined, size: 60, color: Colors.grey[300]),
+            const SizedBox(height: 16),
+            Text(
+              'Nenhuma notificação por aqui',
+              style: TextStyle(
+                color: _textSecondary,
+                fontSize: 14,
+              ),
             ),
-          ),
-        ],
+            const SizedBox(height: 24),
+            ElevatedButton.icon(
+              onPressed: () => Navigator.pop(context),
+              icon: const Icon(Icons.arrow_back_rounded, size: 18),
+              label: const Text('Voltar para o Início'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: _purple,
+                foregroundColor: Colors.white,
+                elevation: 0,
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -164,7 +192,6 @@ class _NotificationCard extends StatelessWidget {
             child: Icon(notification.icon, color: notification.iconColor, size: 24),
           ),
           const SizedBox(width: 16),
-          
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,

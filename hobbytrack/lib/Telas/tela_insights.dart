@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'auth_widgets.dart';
+import 'tela_home.dart';
 import 'tela_categorias.dart';
 import 'tela_criar_hobby.dart';
 import 'tela_metas.dart';
@@ -15,7 +17,6 @@ class TelaInsights extends StatelessWidget {
       backgroundColor: const Color(0xFFFFF7F0),
       body: Stack(
         children: [
-          // 1. FUNDO CURVO DO TOPO COM GRADIENTE
           ClipPath(
             clipper: TopHeaderClipper(),
             child: Container(
@@ -29,12 +30,10 @@ class TelaInsights extends StatelessWidget {
               ),
             ),
           ),
-
           SafeArea(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // 2. ÍCONES DO TOPO (Notificação e Perfil)
                 Padding(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 20.0,
@@ -43,7 +42,6 @@ class TelaInsights extends StatelessWidget {
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.end,
                     children: [
-                      // Ícone de Sino
                       GestureDetector(
                         onTap: () => Navigator.push(
                           context,
@@ -82,7 +80,6 @@ class TelaInsights extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(width: 15),
-                      // Ícone de Perfil
                       GestureDetector(
                         onTap: () => Navigator.push(
                           context,
@@ -97,9 +94,7 @@ class TelaInsights extends StatelessWidget {
                     ],
                   ),
                 ),
-
                 const SizedBox(height: 20),
-
                 const Padding(
                   padding: EdgeInsets.symmetric(horizontal: 20.0),
                   child: Text(
@@ -111,80 +106,65 @@ class TelaInsights extends StatelessWidget {
                     ),
                   ),
                 ),
-
                 const SizedBox(height: 15),
-
-                // 4. LISTA DE DIAS (CARDS)
                 Expanded(
-                  child: ListView(
-                    padding: const EdgeInsets.symmetric(horizontal: 20.0),
-                    children: const [
-                      DiaCard(
-                        dia: 'Segunda',
-                        mensagem: 'Você registrou progresso em 2 metas',
-                        icone: Icon(
-                          Icons.check_circle_outline,
-                          color: laranja,
-                          size: 28,
-                        ),
-                        corDia: roxo,
-                      ),
-                      DiaCard(
-                        dia: 'Terça',
-                        mensagem: 'Sua meta de leitura foi concluida',
-                        icone: Icon(
-                          Icons.check_circle_outline,
-                          color: laranja,
-                          size: 28,
-                        ),
-                        corDia: roxo,
-                      ),
-                      DiaCard(
-                        dia: 'Quarta',
-                        mensagem: 'Você manteve constância em exercícios',
-                        icone: Icon(
-                          Icons.check_circle_outline,
-                          color: laranja,
-                          size: 28,
-                        ),
-                        corDia: roxo,
-                      ),
-                      DiaCard(
-                        dia: 'Quinta',
-                        mensagem: 'Nenhum progresso foi registrado hoje',
-                        icone: Icon(
-                          Icons.warning,
-                          color: Colors.amber,
-                          size: 28,
-                        ),
-                        corDia: roxo,
-                      ),
-                      DiaCard(
-                        dia: 'Sexta',
-                        mensagem:
-                            'Sua evolução foi maior que no inicio da semana',
-                        icone: Icon(
-                          Icons.bar_chart,
-                          color: Colors.green,
-                          size: 28,
-                        ),
-                        corDia: roxo,
-                      ),
-                      DiaCard(
-                        dia: 'Sábado',
-                        mensagem:
-                            'Sua evolução foi maior que no inicio da semana',
-                        icone: Icon(
-                          Icons.bar_chart,
-                          color: Colors.green,
-                          size: 28,
-                        ),
-                        corDia: roxo,
-                      ),
-                      SizedBox(
-                        height: 80,
-                      ), // Espaço em branco pro último item não ficar atrás da barra de baixo
-                    ],
+                  child: StreamBuilder<QuerySnapshot>(
+                    stream: FirebaseFirestore.instance
+                        .collection('insights')
+                        .orderBy('ordem')
+                        .snapshots(),
+                    builder: (context, snapshot) {
+                      if (snapshot.connectionState == ConnectionState.waiting) {
+                        return const Center(child: CircularProgressIndicator());
+                      }
+
+                      if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                        return const Center(
+                          child: Text('Nenhum progresso registrado ainda.'),
+                        );
+                      }
+
+                      final docs = snapshot.data!.docs;
+
+                      return ListView.builder(
+                        padding: const EdgeInsets.symmetric(horizontal: 20.0),
+                        itemCount: docs.length + 1,
+                        itemBuilder: (context, index) {
+                          if (index == docs.length) {
+                            return const SizedBox(height: 80);
+                          }
+
+                          final dados = docs[index].data() as Map<String, dynamic>;
+                          final status = dados['status'] ?? 'sucesso';
+
+                          IconData iconeData;
+                          Color iconeCor;
+
+                          switch (status) {
+                            case 'alerta':
+                              iconeData = Icons.warning;
+                              iconeCor = Colors.amber;
+                              break;
+                            case 'evolucao':
+                              iconeData = Icons.bar_chart;
+                              iconeCor = Colors.green;
+                              break;
+                            case 'sucesso':
+                            default:
+                              iconeData = Icons.check_circle_outline;
+                              iconeCor = laranja;
+                              break;
+                          }
+
+                          return DiaCard(
+                            dia: dados['dia'] ?? '',
+                            mensagem: dados['mensagem'] ?? '',
+                            icone: Icon(iconeData, color: iconeCor, size: 28),
+                            corDia: roxo,
+                          );
+                        },
+                      );
+                    },
                   ),
                 ),
               ],
@@ -192,12 +172,11 @@ class TelaInsights extends StatelessWidget {
           ),
         ],
       ),
-
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
       floatingActionButton: GestureDetector(
         onTap: () => Navigator.push(
           context,
-          MaterialPageRoute(builder: (_) => const CriarHobby()),
+          MaterialPageRoute(builder: (_) => const TelaCriarHobby()),
         ),
         child: Container(
           height: 65,
@@ -230,7 +209,15 @@ class TelaInsights extends StatelessWidget {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
-              _buildNavItem(Icons.home, 'Home', false, onTap: () => Navigator.pop(context)),
+              _buildNavItem(
+                Icons.home,
+                'Home',
+                false,
+                onTap: () => Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(builder: (_) => const TelaHome()),
+                ),
+              ),
               _buildNavItem(
                 Icons.track_changes,
                 'Metas',
@@ -240,9 +227,7 @@ class TelaInsights extends StatelessWidget {
                   MaterialPageRoute(builder: (_) => const TelaMetas()),
                 ),
               ),
-              const SizedBox(
-                width: 40,
-              ), // Espaço vazio onde entra o botão central (+)
+              const SizedBox(width: 40),
               _buildNavItem(
                 Icons.grid_view,
                 'Categorias',
@@ -282,7 +267,6 @@ class TelaInsights extends StatelessWidget {
   }
 }
 
-//WIDGETS
 class DiaCard extends StatelessWidget {
   final String dia;
   final String mensagem;
