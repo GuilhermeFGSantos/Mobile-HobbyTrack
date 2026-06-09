@@ -308,6 +308,19 @@ class Meta {
     return p > 1 ? 1 : p;
   }
 
+  // Status "real" usado pelos filtros (Em andamento / Concluídas), calculado
+  // a partir do progresso — não fica gravado no banco. Assim uma quantitativa
+  // que bateu o alvo no período conta como concluída, e volta a "em andamento"
+  // quando o período reseta. Pausada continua pausada.
+  StatusMeta get statusEfetivo {
+    if (status == StatusMeta.pausada) return StatusMeta.pausada;
+    final concluida = tipo == TipoMeta.quantitativa
+        ? (valorAlvo > 0 && progressoEfetivo >= valorAlvo)
+        : (checks.isNotEmpty &&
+              checks.every((c) => c == EstadoCheck.concluido));
+    return concluida ? StatusMeta.concluida : StatusMeta.emAndamento;
+  }
+
   // Métrica usada pra eleger a meta "mais frequente do mês".
   // Pra quantitativa = progresso, pra qualitativa = nº de checks concluídos.
   int get pontuacaoProgresso => tipo == TipoMeta.quantitativa
