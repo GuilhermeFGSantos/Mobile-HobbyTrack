@@ -8,6 +8,7 @@ import 'package:hobbytrack/Telas/tela_perfil.dart';
 import 'auth_widgets.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'tela_editar_categoria.dart';
 
 class TelaCategorias extends StatefulWidget {
   const TelaCategorias({super.key});
@@ -502,7 +503,16 @@ class _TelaCategoriasState extends State<TelaCategorias> {
             } else {
               Navigator.push(
                 context,
-                MaterialPageRoute(builder: (_) => const TelaNovaCategoria()),
+                MaterialPageRoute(
+                  builder: (_) => TelaEditarCategoria(
+                    categoria: {
+                      'id': docId,
+                      'nome': title,
+                      'emoji': emoji,
+                      'cor': cor.value,
+                    },
+                  ),
+                ),
               );
             }
           },
