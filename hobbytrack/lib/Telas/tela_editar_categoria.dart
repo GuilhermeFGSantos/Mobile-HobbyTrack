@@ -9,14 +9,16 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'tela_home.dart';
 
-class TelaNovaCategoria extends StatefulWidget {
-  const TelaNovaCategoria({super.key});
+class TelaEditarCategoria extends StatefulWidget {
+  final Map<String, dynamic> categoria;
+
+  const TelaEditarCategoria({super.key, required this.categoria});
 
   @override
-  State<TelaNovaCategoria> createState() => _TelaNovaCategoriaState();
+  State<TelaEditarCategoria> createState() => _TelaEditarCategoriaState();
 }
 
-class _TelaNovaCategoriaState extends State<TelaNovaCategoria> {
+class _TelaEditarCategoriaState extends State<TelaEditarCategoria> {
   int corSelecionada = 0;
   final List<Color> coresOpcoes = [
     const Color(0xFF7B2CBF), // Roxo
@@ -26,17 +28,18 @@ class _TelaNovaCategoriaState extends State<TelaNovaCategoria> {
     const Color(0xFFA5D7E8), // Ciano claro
   ];
 
-  final TextEditingController nomeController = TextEditingController();
-  final TextEditingController emojiController = TextEditingController();
+  late TextEditingController nomeController;
+  late TextEditingController emojiController;
   bool _salvando = false;
 
+  @override
   void dispose() {
     nomeController.dispose();
     emojiController.dispose();
     super.dispose();
   }
 
-  Future<void> _salvarCategoria() async {
+  Future<void> editarCategoria() async {
     final nome = nomeController.text.trim();
     final emoji = emojiController.text.trim();
 
@@ -53,13 +56,15 @@ class _TelaNovaCategoriaState extends State<TelaNovaCategoria> {
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) return;
 
-      await FirebaseFirestore.instance.collection('categorias').add({
-        'userId': user.uid,
-        'nome': nome,
-        'emoji': emoji,
-        'cor': coresOpcoes[corSelecionada].value, // salva o int da cor
-        'criadoEm': FieldValue.serverTimestamp(),
-      });
+      await FirebaseFirestore.instance
+          .collection('categorias')
+          .doc(widget.categoria['id'])
+          .update({
+            'userId': user.uid,
+            'nome': nome,
+            'emoji': emoji,
+            'cor': coresOpcoes[corSelecionada].value,
+          });
 
       if (mounted) {
         Navigator.pushReplacement(
@@ -76,6 +81,22 @@ class _TelaNovaCategoriaState extends State<TelaNovaCategoria> {
     } finally {
       if (mounted) setState(() => _salvando = false);
     }
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    print('categoria recebida: ${widget.categoria}');
+    nomeController = TextEditingController(
+      text: widget.categoria['nome'] ?? '',
+    );
+    emojiController = TextEditingController(
+      text: widget.categoria['emoji'] ?? '',
+    );
+
+    final int corSalva = widget.categoria['cor'] ?? 0;
+    final index = coresOpcoes.indexWhere((c) => c.value == corSalva);
+    corSelecionada = index != -1 ? index : 0;
   }
 
   @override
@@ -129,14 +150,14 @@ class _TelaNovaCategoriaState extends State<TelaNovaCategoria> {
               children: [
                 const SizedBox(height: 30),
 
-                _buildLabel('Nome da categoria'),
+                _buildLabel('Editar Categoria '),
                 _buildTextField(
-                  'Digite o nome da meta',
+                  'Digite o nome da categoria',
                   controller: nomeController,
                 ),
 
                 const SizedBox(height: 20),
-                _buildLabel('Emoji'),
+                _buildLabel('Editar Emoji'),
                 _buildTextField(
                   'Toque para escolher',
                   controller: emojiController,
@@ -182,7 +203,7 @@ class _TelaNovaCategoriaState extends State<TelaNovaCategoria> {
                       borderRadius: BorderRadius.circular(25),
                     ),
                     child: ElevatedButton(
-                      onPressed: _salvando ? null : _salvarCategoria,
+                      onPressed: _salvando ? null : editarCategoria,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.transparent,
                         shadowColor: Colors.transparent,
