@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -5,6 +6,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:hobbytrack/Telas/tela_categorias.dart';
 import 'package:hobbytrack/Telas/tela_criar_hobby.dart';
+import 'package:hobbytrack/Telas/tela_registrar_progresso.dart';
 import 'package:hobbytrack/Telas/tela_editar_hobby.dart';
 import 'package:hobbytrack/Telas/tela_insights.dart';
 import 'package:hobbytrack/Telas/tela_metas.dart';
@@ -645,7 +647,7 @@ class _BotaoRegistrar extends StatelessWidget {
       child: GestureDetector(
         onTap: () => Navigator.push(
           context,
-          MaterialPageRoute(builder: (_) => const CriarHobby()),
+          MaterialPageRoute(builder: (_) => const TelaRegistrarProgresso()),
         ),
         child: Container(
           width: double.infinity,
@@ -777,8 +779,8 @@ class _SecaoHobbiesAtivos extends StatelessWidget {
         ),
         const SizedBox(height: 12),
         if (carregando)
-          const SizedBox(
-            height: 132,
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 40),
             child: Center(child: CircularProgressIndicator(color: roxo)),
           )
         else if (docsFiltrados.isEmpty)
@@ -790,100 +792,63 @@ class _SecaoHobbiesAtivos extends StatelessWidget {
   }
 }
 
-/// Lista horizontal de cards de hobby com uma scrollbar sempre visível.
-/// É StatefulWidget só para manter o [ScrollController] vivo (e descartá-lo),
-/// que o [Scrollbar] e a [ListView] precisam compartilhar.
-class _HobbiesScroller extends StatefulWidget {
+class _HobbiesScroller extends StatelessWidget {
   final List<QueryDocumentSnapshot<Map<String, dynamic>>> docs;
   final Future<void> Function(String id) onExcluir;
 
   const _HobbiesScroller({required this.docs, required this.onExcluir});
 
   @override
-  State<_HobbiesScroller> createState() => _HobbiesScrollerState();
-}
-
-class _HobbiesScrollerState extends State<_HobbiesScroller> {
-  final _scrollCtrl = ScrollController();
-
-  @override
-  void dispose() {
-    _scrollCtrl.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      height: 132,
-      child: Scrollbar(
-        controller: _scrollCtrl,
-        thumbVisibility: true,
-        child: ListView.separated(
-          controller: _scrollCtrl,
-          scrollDirection: Axis.horizontal,
-          padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
-          itemCount: widget.docs.length,
-          separatorBuilder: (context, index) => const SizedBox(width: 12),
-          itemBuilder: (context, i) {
-            final hobbyDoc = widget.docs[i];
-            final d = hobbyDoc.data() as Map<String, dynamic>;
-
-            return FutureBuilder<QuerySnapshot>(
-              future: hobbyDoc.reference.collection('metas').limit(1).get(),
-              builder: (context, metaSnapshot) {
-                if (!metaSnapshot.hasData) {
-                  return const SizedBox(
-                    width: 140,
-                    child: Center(
-                      child: CircularProgressIndicator(color: roxo),
-                    ),
-                  );
-                }
-
-                final docsMeta = metaSnapshot.data!.docs;
-
-                if (docsMeta.isEmpty) {
-                  return _CardHobby(
-                    id: hobbyDoc.id,
-                    metaDocId: '',
-                    emoji: d['emoji'] as String? ?? '🎯',
-                    nome: d['nome'] as String? ?? '',
-                    onExcluir: () => widget.onExcluir(hobbyDoc.id),
-                    metaTipo: 'Minutos',
-                    metaValor: 20,
-                    repetir: true,
-                    diasSemana: const [],
-                    horarioLembrete: "19:30",
-                    mostrarNotificacao: true,
-                  );
-                }
-
-                final metaDoc = docsMeta.first;
-                final m = metaDoc.data() as Map<String, dynamic>;
-
-                return _CardHobby(
-                  id: hobbyDoc.id,
-                  metaDocId: metaDoc.id,
-                  emoji: d['emoji'] as String? ?? '🎯',
-                  nome: d['nome'] as String? ?? '',
-                  onExcluir: () => widget.onExcluir(hobbyDoc.id),
-
-                  metaTipo: m['meta_tipo'] as String? ?? 'Minutos',
-                  metaValor: m['meta_valor'] as int? ?? 20,
-                  repetir: m['repetir'] as bool? ?? true,
-                  diasSemana: List<String>.from(
-                    m['dias_semana'] as List<dynamic>? ?? [],
-                  ),
-                  horarioLembrete: m['horario_lembrete'] as String? ?? "19:30",
-                  mostrarNotificacao: m['mostrar_notificacao'] as bool? ?? true,
-                );
-              },
+    final items = docs.map((hobbyDoc) {
+      final d = hobbyDoc.data();
+      return FutureBuilder<QuerySnapshot>(
+        future: hobbyDoc.reference.collection('metas').limit(1).get(),
+        builder: (context, metaSnapshot) {
+          if (!metaSnapshot.hasData) {
+            return const SizedBox(
+              height: 180,
+              child: Center(child: CircularProgressIndicator(color: roxo)),
             );
-          },
+          }
+          final docsMeta = metaSnapshot.data!.docs;
+          final metaDoc = docsMeta.isNotEmpty ? docsMeta.first : null;
+          final m = metaDoc?.data() as Map<String, dynamic>? ?? {};
+          return _CardHobby(
+            id: hobbyDoc.id,
+            metaDocId: metaDoc?.id ?? '',
+            emoji: d['emoji'] as String? ?? '🎯',
+            nome: d['nome'] as String? ?? '',
+            onExcluir: () => onExcluir(hobbyDoc.id),
+            metaTipo: m['meta_tipo'] as String? ?? 'Minutos',
+            metaValor: m['meta_valor'] as int? ?? 20,
+            repetir: m['repetir'] as bool? ?? true,
+            diasSemana: List<String>.from(m['dias_semana'] as List? ?? []),
+            horarioLembrete: m['horario_lembrete'] as String? ?? '19:30',
+            mostrarNotificacao: m['mostrar_notificacao'] as bool? ?? true,
+          );
+        },
+      );
+    }).toList();
+
+    // Grid de 2 colunas
+    final rows = <Widget>[];
+    for (var i = 0; i < items.length; i += 2) {
+      rows.add(
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(child: items[i]),
+              const SizedBox(width: 10),
+              Expanded(child: i + 1 < items.length ? items[i + 1] : const SizedBox()),
+            ],
+          ),
         ),
-      ),
-    );
+      );
+    }
+    return Column(children: rows);
   }
 }
 
@@ -893,8 +858,8 @@ class _EmptyHobbies extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const SizedBox(
-      height: 132,
+    return const Padding(
+      padding: EdgeInsets.symmetric(vertical: 40),
       child: Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -919,12 +884,10 @@ class _EmptyHobbies extends StatelessWidget {
 }
 
 // ---------------------------------------------------------------------------
-// Card de hobby individual
+// Card de hobby individual — mostra progresso de hoje, sequência e lembrete
 // ---------------------------------------------------------------------------
 
-/// [id] é o ID do documento no Firestore.
-/// [onExcluir] deleta o documento via [_excluirHobby] do estado pai.
-class _CardHobby extends StatelessWidget {
+class _CardHobby extends StatefulWidget {
   final String id;
   final String emoji;
   final String nome;
@@ -951,7 +914,81 @@ class _CardHobby extends StatelessWidget {
     required this.metaDocId,
   });
 
-  /// Menu de contexto com opções de editar e excluir o hobby.
+  @override
+  State<_CardHobby> createState() => _CardHobbyState();
+}
+
+class _CardHobbyState extends State<_CardHobby> {
+  int _progressoHoje = 0;
+  int _streak = 0;
+  bool _carregando = true;
+  StreamSubscription<QuerySnapshot>? _sub;
+
+  @override
+  void initState() {
+    super.initState();
+    _iniciarStream();
+  }
+
+  @override
+  void dispose() {
+    _sub?.cancel();
+    super.dispose();
+  }
+
+  void _iniciarStream() {
+    final agora = DateTime.now();
+    final inicioDia = DateTime(agora.year, agora.month, agora.day);
+    final limite = inicioDia.subtract(const Duration(days: 60));
+
+    _sub = FirebaseFirestore.instance
+        .collection('hobbies')
+        .doc(widget.id)
+        .collection('registros')
+        .where('registradoEm', isGreaterThanOrEqualTo: Timestamp.fromDate(limite))
+        .snapshots()
+        .listen((snap) => _processar(snap, inicioDia));
+  }
+
+  void _processar(QuerySnapshot snap, DateTime inicioDia) {
+    int progresso = 0;
+    final diasComRegistro = <String>{};
+
+    for (final r in snap.docs) {
+      final data = r.data() as Map<String, dynamic>;
+      final ts = data['registradoEm'];
+      if (ts == null) continue;
+      final date = (ts as Timestamp).toDate();
+      final chave = '${date.year}-${date.month}-${date.day}';
+      diasComRegistro.add(chave);
+      if (!date.isBefore(inicioDia)) {
+        progresso += data['quantidade'] as int? ?? 0;
+      }
+    }
+
+    int streak = 0;
+    var dia = inicioDia;
+    while (diasComRegistro.contains('${dia.year}-${dia.month}-${dia.day}')) {
+      streak++;
+      dia = dia.subtract(const Duration(days: 1));
+    }
+    if (streak == 0) {
+      dia = inicioDia.subtract(const Duration(days: 1));
+      while (diasComRegistro.contains('${dia.year}-${dia.month}-${dia.day}')) {
+        streak++;
+        dia = dia.subtract(const Duration(days: 1));
+      }
+    }
+
+    if (mounted) {
+      setState(() {
+        _progressoHoje = progresso;
+        _streak = streak;
+        _carregando = false;
+      });
+    }
+  }
+
   void _mostrarMenu(BuildContext context) {
     showModalBottomSheet(
       context: context,
@@ -972,17 +1009,17 @@ class _CardHobby extends StatelessWidget {
                   context,
                   MaterialPageRoute(
                     builder: (_) => EditarHobby(
-                      hobbyId: id,
-                      dadosIniciaisHobby: {'nome': nome, 'emoji': emoji},
+                      hobbyId: widget.id,
+                      dadosIniciaisHobby: {'nome': widget.nome, 'emoji': widget.emoji},
                       dadosIniciaisMeta: {
-                        'meta_tipo': metaTipo,
-                        'meta_valor': metaValor,
-                        'repetir': repetir,
-                        'dias_semana': diasSemana,
-                        'horario_lembrete': horarioLembrete,
-                        'mostrar_notificacao': mostrarNotificacao,
+                        'meta_tipo': widget.metaTipo,
+                        'meta_valor': widget.metaValor,
+                        'repetir': widget.repetir,
+                        'dias_semana': widget.diasSemana,
+                        'horario_lembrete': widget.horarioLembrete,
+                        'mostrar_notificacao': widget.mostrarNotificacao,
                       },
-                      metaDocId: metaDocId,
+                      metaDocId: widget.metaDocId,
                     ),
                   ),
                 );
@@ -990,15 +1027,9 @@ class _CardHobby extends StatelessWidget {
             ),
             ListTile(
               leading: const Icon(Icons.delete_outline, color: Colors.red),
-              title: const Text(
-                'Excluir hobby',
-                style: TextStyle(color: Colors.red),
-              ),
+              title: const Text('Excluir hobby', style: TextStyle(color: Colors.red)),
               onTap: () {
-                FirebaseFirestore.instance
-                    .collection('hobbies')
-                    .doc(id)
-                    .delete();
+                FirebaseFirestore.instance.collection('hobbies').doc(widget.id).delete();
                 Navigator.pop(context);
               },
             ),
@@ -1009,66 +1040,210 @@ class _CardHobby extends StatelessWidget {
     );
   }
 
+  String get _labelMeta {
+    final freq = widget.repetir ? 'Todo dia' : widget.diasSemana.join(', ');
+    final abrev = switch (widget.metaTipo) {
+      'Minutos' => 'min',
+      'Horas'   => 'h',
+      'Vezes'   => 'vez',
+      'Páginas' => 'pág',
+      _         => widget.metaTipo.toLowerCase(),
+    };
+    return '$freq • ${widget.metaValor} $abrev';
+  }
+
+  String get _labelProximo {
+    if (!widget.repetir && widget.diasSemana.isNotEmpty) {
+      const nomes = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'];
+      final hoje = DateTime.now().weekday; // 1=seg … 7=dom
+      for (var i = 0; i < 7; i++) {
+        final diaNome = nomes[(hoje - 1 + i) % 7];
+        if (widget.diasSemana.any((d) => d.startsWith(diaNome))) {
+          return i == 0 ? 'Próximo: hoje' : 'Próximo: $diaNome';
+        }
+      }
+      return 'Próximo: ${widget.diasSemana.first}';
+    }
+    return 'Próximo: hoje às ${widget.horarioLembrete}';
+  }
+
   @override
   Widget build(BuildContext context) {
+    final pct = widget.metaValor > 0
+        ? (_progressoHoje / widget.metaValor).clamp(0.0, 1.0)
+        : 0.0;
+    final metaCumprida = _progressoHoje >= widget.metaValor && widget.metaValor > 0;
+    final corAnel = metaCumprida ? const Color(0xFF5B4FCF) : roxo;
+
     return Container(
-      width: 150,
-      padding: const EdgeInsets.all(16),
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(18),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.06),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
           ),
         ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
+          // ── Topo: emoji + menu ──
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Container(
-                width: 48,
-                height: 48,
+                width: 44,
+                height: 44,
                 decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [
-                      roxo.withValues(alpha: 0.16),
-                      laranja.withValues(alpha: 0.16),
-                    ],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  borderRadius: BorderRadius.circular(14),
+                  color: roxo.withValues(alpha: 0.1),
+                  shape: BoxShape.circle,
                 ),
                 alignment: Alignment.center,
-                child: Text(emoji, style: const TextStyle(fontSize: 26)),
+                child: Text(widget.emoji, style: const TextStyle(fontSize: 24)),
               ),
               const Spacer(),
               GestureDetector(
                 onTap: () => _mostrarMenu(context),
                 behavior: HitTestBehavior.opaque,
                 child: const Padding(
-                  padding: EdgeInsets.only(left: 4, bottom: 4),
+                  padding: EdgeInsets.only(left: 4),
                   child: Icon(Icons.more_vert, size: 18, color: texto),
                 ),
               ),
             ],
           ),
+          const SizedBox(height: 8),
+          // ── Nome + meta ──
           Text(
-            nome,
-            maxLines: 2,
+            widget.nome,
+            maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: const TextStyle(
-              fontSize: 15,
+              fontSize: 14,
               fontWeight: FontWeight.w700,
               color: Color(0xFF2B2B2B),
-              height: 1.2,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            _labelMeta,
+            style: const TextStyle(fontSize: 11, color: texto),
+          ),
+          const SizedBox(height: 12),
+
+          // ── Meio: progresso circular + sequência ──
+          if (_carregando)
+            const Padding(
+              padding: EdgeInsets.only(bottom: 12),
+              child: Center(
+                child: SizedBox(
+                  width: 18, height: 18,
+                  child: CircularProgressIndicator(strokeWidth: 2, color: roxo),
+                ),
+              ),
+            )
+          else
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                SizedBox(
+                  width: 52,
+                  height: 52,
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      SizedBox(
+                        width: 52, height: 52,
+                        child: CircularProgressIndicator(
+                          value: pct,
+                          strokeWidth: 5,
+                          backgroundColor: corAnel.withValues(alpha: 0.12),
+                          valueColor: AlwaysStoppedAnimation<Color>(corAnel),
+                        ),
+                      ),
+                      Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            '$_progressoHoje',
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w800,
+                              color: Color(0xFF2B2B2B),
+                              height: 1,
+                            ),
+                          ),
+                          Text(
+                            '/${widget.metaValor}',
+                            style: const TextStyle(fontSize: 9, color: texto),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: _streak > 0
+                      ? Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text('sequência', style: TextStyle(fontSize: 10, color: texto)),
+                            const SizedBox(height: 2),
+                            Row(
+                              children: [
+                                const Text('🔥', style: TextStyle(fontSize: 15)),
+                                const SizedBox(width: 3),
+                                Text(
+                                  '$_streak dias',
+                                  style: const TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w700,
+                                    color: Color(0xFF2B2B2B),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        )
+                      : Text(
+                          'Comece hoje! 💪',
+                          style: TextStyle(fontSize: 11, color: texto.withValues(alpha: 0.7)),
+                        ),
+                ),
+              ],
+            ),
+
+          const SizedBox(height: 10),
+          // ── Rodapé: próximo lembrete ──
+          const Divider(height: 1, color: Color(0xFFF0EBE8)),
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 9),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    _labelProximo,
+                    style: TextStyle(fontSize: 11, color: texto.withValues(alpha: 0.8)),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                const SizedBox(width: 6),
+                metaCumprida
+                    ? const Icon(Icons.check_circle, size: 22, color: Color(0xFF5B4FCF))
+                    : Container(
+                        width: 22, height: 22,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          border: Border.all(color: roxo.withValues(alpha: 0.35), width: 1.5),
+                        ),
+                      ),
+              ],
             ),
           ),
         ],
@@ -1078,23 +1253,102 @@ class _CardHobby extends StatelessWidget {
 }
 
 // ---------------------------------------------------------------------------
-// Card de evolução — usa contagem real de hobbies do Firestore
+// Card de evolução — busca registros reais para calcular dias e evolução
 // ---------------------------------------------------------------------------
 
-/// [totalHobbies] vem da quantidade de documentos retornados pelo Firestore.
-class _CardEvolucao extends StatelessWidget {
+class _CardEvolucao extends StatefulWidget {
   final List<QueryDocumentSnapshot<Map<String, dynamic>>> docs;
   const _CardEvolucao({required this.docs});
 
-  // Mensagem de incentivo. Hobbies ainda não têm rastreio de progresso/streak,
-  // então a mensagem não depende desses dados (que seriam sempre 0).
-  String get _mensagemConstancia {
-    if (docs.isEmpty) return 'Cadastre seu primeiro hobby para começar!';
+  @override
+  State<_CardEvolucao> createState() => _CardEvolucaoState();
+}
+
+class _CardEvolucaoState extends State<_CardEvolucao> {
+  int _diasConstancia = 0;
+  double _evolucaoSemana = 0;
+  bool _carregando = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _calcularStats();
+  }
+
+  @override
+  void didUpdateWidget(_CardEvolucao old) {
+    super.didUpdateWidget(old);
+    if (old.docs.length != widget.docs.length) _calcularStats();
+  }
+
+  Future<void> _calcularStats() async {
+    if (widget.docs.isEmpty) {
+      if (mounted) setState(() { _diasConstancia = 0; _evolucaoSemana = 0; _carregando = false; });
+      return;
+    }
+
+    final agora = DateTime.now();
+    // Início da semana atual (segunda-feira)
+    final inicioSemanaAtual = DateTime(agora.year, agora.month, agora.day)
+        .subtract(Duration(days: agora.weekday - 1));
+
+    final diasComRegistro = <String>{};
+    int totalRegistradoSemana = 0;
+    int totalMetaSemanal = 0;
+
+    for (final doc in widget.docs) {
+      // Meta diária do hobby
+      final metaSnap = await doc.reference.collection('metas').limit(1).get();
+      final metaDiaria = metaSnap.docs.isNotEmpty
+          ? metaSnap.docs.first.data()['meta_valor'] as int? ?? 20
+          : 20;
+      totalMetaSemanal += metaDiaria * 7;
+
+      // Registros desta semana
+      final registrosSnap = await doc.reference
+          .collection('registros')
+          .where('registradoEm',
+              isGreaterThanOrEqualTo: Timestamp.fromDate(inicioSemanaAtual))
+          .get();
+
+      for (final r in registrosSnap.docs) {
+        final ts = r.data()['registradoEm'];
+        if (ts == null) continue;
+        final data = (ts as Timestamp).toDate();
+        diasComRegistro.add('${data.year}-${data.month}-${data.day}');
+        totalRegistradoSemana += r.data()['quantidade'] as int? ?? 0;
+      }
+    }
+
+    // % da meta semanal cumprida — cresce a cada registro novo
+    final evolucao = totalMetaSemanal > 0
+        ? (totalRegistradoSemana / totalMetaSemanal) * 100
+        : 0.0;
+
+    if (!mounted) return;
+    setState(() {
+      _diasConstancia = diasComRegistro.length;
+      _evolucaoSemana = evolucao;
+      _carregando = false;
+    });
+  }
+
+  String get _mensagem {
+    if (widget.docs.isEmpty) return 'Cadastre seu primeiro hobby para começar!';
+    if (_diasConstancia >= 5) return 'Você manteve a constância esta semana! 🔥';
+    if (_diasConstancia >= 3) return 'Continue cuidando dos seus hobbies! 🎯';
     return 'Continue cuidando dos seus hobbies! 🎯';
   }
 
   @override
   Widget build(BuildContext context) {
+    final evolucaoTexto = '${_evolucaoSemana.toStringAsFixed(0)}%';
+    final evolucaoCor = _evolucaoSemana >= 100
+        ? const Color(0xFF22A45D)   // verde: meta cumprida
+        : _evolucaoSemana >= 50
+            ? const Color(0xFFF77F00) // laranja: metade do caminho
+            : const Color(0xFF2B2B2B); // neutro: ainda começando
+
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16),
       padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
@@ -1122,27 +1376,60 @@ class _CardEvolucao extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           Container(
-            padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
+            padding: const EdgeInsets.fromLTRB(12, 14, 12, 14),
             decoration: BoxDecoration(
               color: const Color(0xFFFBF5F1),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Column(
               children: [
-                Center(
-                  child: Text(
-                    _mensagemConstancia,
-                    style: const TextStyle(fontSize: 12, color: texto),
-                    textAlign: TextAlign.center,
+                Text(
+                  _mensagem,
+                  style: const TextStyle(fontSize: 12, color: texto),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 16),
+                if (_carregando)
+                  const SizedBox(
+                    height: 40,
+                    child: Center(
+                      child: SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2, color: roxo),
+                      ),
+                    ),
+                  )
+                else
+                  IntrinsicHeight(
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: _StatEvolucao(
+                            valor: '${widget.docs.length}',
+                            rotulo: 'hobbies ativos',
+                            cor: const Color(0xFF2B2B2B),
+                          ),
+                        ),
+                        const VerticalDivider(width: 1, color: Color(0xFFE0D9D2)),
+                        Expanded(
+                          child: _StatEvolucao(
+                            valor: '$_diasConstancia',
+                            rotulo: 'Dias de constância',
+                            cor: const Color(0xFF2B2B2B),
+                          ),
+                        ),
+                        const VerticalDivider(width: 1, color: Color(0xFFE0D9D2)),
+                        Expanded(
+                          child: _StatEvolucao(
+                            valor: evolucaoTexto,
+                            rotulo: 'evolução da semana',
+                            cor: evolucaoCor,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-                const SizedBox(height: 14),
-                // Total de hobbies vindo do Firestore (único dado real hoje).
-                _StatEvolucao(
-                  valor: '${docs.length}',
-                  rotulo: 'hobbies ativos',
-                  cor: const Color(0xFF2B2B2B),
-                ),
               ],
             ),
           ),
@@ -1165,6 +1452,7 @@ class _StatEvolucao extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
       children: [
         Text(
           valor,
@@ -1174,7 +1462,7 @@ class _StatEvolucao extends StatelessWidget {
             color: cor,
           ),
         ),
-        const SizedBox(height: 2),
+        const SizedBox(height: 4),
         Text(
           rotulo,
           textAlign: TextAlign.center,
