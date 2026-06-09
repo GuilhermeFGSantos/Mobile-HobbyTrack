@@ -5,6 +5,7 @@ import 'package:hobbytrack/Telas/tela_metas.dart';
 import 'package:hobbytrack/Telas/tela_notificacoes.dart';
 import 'package:hobbytrack/Telas/tela_nova_categoria.dart';
 import 'package:hobbytrack/Telas/tela_perfil.dart';
+import 'package:hobbytrack/Telas/tela_editar_categoria.dart';
 import 'auth_widgets.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -502,8 +503,17 @@ class _TelaCategoriasState extends State<TelaCategorias> {
             } else {
               Navigator.push(
                 context,
-                MaterialPageRoute(builder: (_) => const TelaNovaCategoria()),
-              );
+                MaterialPageRoute(
+                  builder: (_) => TelaEditarCategoria(
+                    categoria: {
+                      'id': docId,
+                      'nome': title,
+                      'emoji': emoji,
+                      'cor': cor.value,
+                    },
+                  ),
+                ),
+              ).then((_) => buscarCategorias());
             }
           },
           itemBuilder: (context) => [
